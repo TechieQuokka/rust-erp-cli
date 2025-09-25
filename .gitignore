@@ -1,0 +1,151 @@
+# Rust 관련
+/target/
+**/*.rs.bk
+*.pdb
+
+# Cargo
+Cargo.lock
+
+# 개발 환경
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# IDE 설정
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS 관련
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 로그 파일
+*.log
+logs/
+log/
+
+# 데이터베이스 파일
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# 설정 파일 (민감한 정보 포함)
+config/local.toml
+config/secrets.toml
+
+# 백업 파일
+*.bak
+*.tmp
+*.temp
+
+# 테스트 관련
+coverage/
+tarpaulin-report.html
+cobertura.xml
+
+# 문서화 생성 파일
+/target/doc/
+book/
+
+# 빌드 아티팩트
+*.exe
+*.deb
+*.rpm
+*.tar.gz
+
+# Redis 덤프 파일
+dump.rdb
+
+# PostgreSQL 관련
+*.pid
+*.seed
+*.pid.lock
+
+# 보고서 출력
+reports/*.json
+reports/*.csv
+reports/*.pdf
+
+# 임시 파일
+.temp/
+temp/
+
+# 프로파일링 결과
+flamegraph.svg
+perf.data*
+
+# Docker 관련
+.dockerignore
+
+# 키 및 인증서
+*.key
+*.pem
+*.cert
+*.csr
+*.crt
+
+# 캐시 파일
+.cache/
+node_modules/ # 만약 프론트엔드 도구가 있는 경우
+
+# 백업 및 패치
+*.orig
+*.patch
+*.diff
+
+# 에디터 백업
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# macOS
+.AppleDouble
+.LSOverride
+
+# Windows
+ehthumbs_vista.db
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+
+# 분석 도구 결과
+*.profraw
+*.profdata
+
+# 벤치마킹 결과
+criterion/
+benches/results/
+
+# 실행 파일 (Windows)
+*.exe
+
+# 바이너리 (Linux/macOS)
+erp
+erp-cli
+
+# 런타임 데이터
+data/
+storage/
+
+# 외부 도구
+.cargo-ok

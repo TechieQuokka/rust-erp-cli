@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(del temp_*.json)",
+      "Bash(del nul)",
+      "Bash(del .mcp.json)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
