@@ -410,7 +410,7 @@ impl OrderItem {
     }
 
     pub fn update_quantity(&mut self, new_quantity: i32) {
-        let old_line_total = self.line_total;
+        let _old_line_total = self.line_total;
         self.quantity = new_quantity;
         self.recalculate_totals();
         self.updated_at = Utc::now();

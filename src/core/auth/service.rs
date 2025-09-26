@@ -216,7 +216,7 @@ impl AuthService {
         })
     }
 
-    pub async fn logout(&self, access_token: &str) -> ErpResult<()> {
+    pub async fn logout(&self, _access_token: &str) -> ErpResult<()> {
         // Add token to blacklist
         // This would typically be done through the middleware/jwt service
         info!("User logged out");
@@ -488,7 +488,7 @@ impl AuthService {
         Ok(0)
     }
 
-    pub async fn get_active_sessions(&self, user_id: Uuid) -> ErpResult<Vec<String>> {
+    pub async fn get_active_sessions(&self, _user_id: Uuid) -> ErpResult<Vec<String>> {
         // This would typically return active session IDs for a user
         // For now, return empty vector
         Ok(vec![])

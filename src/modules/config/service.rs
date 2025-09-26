@@ -46,7 +46,10 @@ impl ConfigService {
     /// 설정 조회 (키로)
     pub async fn get_config(&self, key: &str) -> ErpResult<Option<ConfigItem>> {
         if key.trim().is_empty() {
-            return Err(ErpError::validation("key", "Configuration key cannot be empty"));
+            return Err(ErpError::validation(
+                "key",
+                "Configuration key cannot be empty",
+            ));
         }
 
         self.repository.get_by_key(key.trim()).await
@@ -74,7 +77,10 @@ impl ConfigService {
     }
 
     /// 설정 목록 조회 (표시용 - 비밀 설정은 마스킹)
-    pub async fn list_configs_for_display(&self, filter: Option<ConfigFilter>) -> ErpResult<Vec<ConfigItem>> {
+    pub async fn list_configs_for_display(
+        &self,
+        filter: Option<ConfigFilter>,
+    ) -> ErpResult<Vec<ConfigItem>> {
         let mut configs = self.list_configs(filter).await?;
 
         // 비밀 설정의 값을 마스킹
@@ -88,13 +94,22 @@ impl ConfigService {
     }
 
     /// 설정 업데이트
-    pub async fn update_config(&self, key: &str, request: UpdateConfigRequest) -> ErpResult<ConfigItem> {
+    pub async fn update_config(
+        &self,
+        key: &str,
+        request: UpdateConfigRequest,
+    ) -> ErpResult<ConfigItem> {
         if key.trim().is_empty() {
-            return Err(ErpError::validation("key", "Configuration key cannot be empty"));
+            return Err(ErpError::validation(
+                "key",
+                "Configuration key cannot be empty",
+            ));
         }
 
         // 기존 설정 조회
-        let existing = self.get_config(key).await?
+        let existing = self
+            .get_config(key)
+            .await?
             .ok_or_else(|| ErpError::not_found("ConfigItem", key))?;
 
         // 입력 검증
@@ -103,10 +118,7 @@ impl ConfigService {
         // 업데이트 실행
         let updated = self.repository.update(&existing.id, &request).await?;
 
-        info!(
-            "Updated configuration: key={}, changes={:?}",
-            key, request
-        );
+        info!("Updated configuration: key={}, changes={:?}", key, request);
 
         Ok(updated)
     }
@@ -114,18 +126,21 @@ impl ConfigService {
     /// 설정 삭제
     pub async fn delete_config(&self, key: &str) -> ErpResult<()> {
         if key.trim().is_empty() {
-            return Err(ErpError::validation("key", "Configuration key cannot be empty"));
+            return Err(ErpError::validation(
+                "key",
+                "Configuration key cannot be empty",
+            ));
         }
 
         // 설정 존재 확인
-        let config = self.get_config(key).await?
+        let config = self
+            .get_config(key)
+            .await?
             .ok_or_else(|| ErpError::not_found("ConfigItem", key))?;
 
         // 읽기 전용 설정 삭제 방지
         if config.is_readonly {
-            return Err(ErpError::forbidden(
-                "Cannot delete readonly configuration"
-            ));
+            return Err(ErpError::forbidden("Cannot delete readonly configuration"));
         }
 
         // 삭제 실행
@@ -141,7 +156,7 @@ impl ConfigService {
         if !force {
             return Err(ErpError::validation(
                 "force",
-                "Configuration reset requires force flag"
+                "Configuration reset requires force flag",
             ));
         }
 
@@ -176,7 +191,10 @@ impl ConfigService {
     /// 설정 검색
     pub async fn search_configs(&self, pattern: &str) -> ErpResult<Vec<ConfigItem>> {
         if pattern.trim().is_empty() {
-            return Err(ErpError::validation("pattern", "Search pattern cannot be empty"));
+            return Err(ErpError::validation(
+                "pattern",
+                "Search pattern cannot be empty",
+            ));
         }
 
         let filter = ConfigFilter::new().with_key_pattern(pattern.to_string());
@@ -228,7 +246,11 @@ impl ConfigService {
     }
 
     /// 설정 복원 (JSON에서 가져오기)
-    pub async fn import_configs(&self, json_data: &str, overwrite: bool) -> ErpResult<ImportResult> {
+    pub async fn import_configs(
+        &self,
+        json_data: &str,
+        overwrite: bool,
+    ) -> ErpResult<ImportResult> {
         let configs: Vec<ConfigItem> = serde_json::from_str(json_data)
             .map_err(|e| ErpError::validation("json_data", &format!("Invalid JSON: {}", e)))?;
 
@@ -320,7 +342,10 @@ impl ConfigService {
         }
 
         if !validation.is_valid {
-            return Err(ErpError::validation("request", &validation.errors.join(", ")));
+            return Err(ErpError::validation(
+                "request",
+                &validation.errors.join(", "),
+            ));
         }
 
         Ok(())
@@ -345,7 +370,10 @@ impl ConfigService {
         }
 
         if !validation.is_valid {
-            return Err(ErpError::validation("request", &validation.errors.join(", ")));
+            return Err(ErpError::validation(
+                "request",
+                &validation.errors.join(", "),
+            ));
         }
 
         Ok(())

@@ -1,6 +1,6 @@
 use crate::core::database::models::product::{
-    CreateProductRequest, Product, ProductFilter, ProductStatus, StockMovementType,
-    StockStatus, UpdateProductRequest,
+    CreateProductRequest, Product, ProductFilter, ProductStatus, StockMovementType, StockStatus,
+    UpdateProductRequest,
 };
 use chrono::{DateTime, Utc};
 use rust_decimal::Decimal;

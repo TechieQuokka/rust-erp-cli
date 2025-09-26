@@ -16,7 +16,9 @@ impl Cli {
                 Commands::Sales(cmd) => commands::SalesHandler::handle(cmd, &config).await,
                 Commands::Reports(cmd) => commands::ReportsHandler::handle(cmd, &config).await,
                 Commands::Config(cmd) => commands::ConfigHandler::handle(cmd, &config).await,
-                Commands::Migrate(cmd) => commands::migrate::handle_migrate_command(cmd.clone(), config).await,
+                Commands::Migrate(cmd) => {
+                    commands::migrate::handle_migrate_command(cmd.clone(), config).await
+                }
             },
             None => {
                 // 기본 도움말 표시

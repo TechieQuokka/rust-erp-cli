@@ -12,9 +12,9 @@ use crate::utils::error::ErpResult;
 pub struct ReportsHandler;
 
 impl ReportsHandler {
-    pub async fn handle(cmd: &ReportCommands, config: &AppConfig) -> ErpResult<()> {
+    pub async fn handle(cmd: &ReportCommands, _config: &AppConfig) -> ErpResult<()> {
         // 보고서 서비스 초기화 (실제 구현에서는 데이터베이스 연결 사용)
-        let reports_service = create_reports_service(None); // Mock 사용
+        let _reports_service = create_reports_service(None); // Mock 사용
 
         match cmd {
             ReportCommands::SalesSummary {

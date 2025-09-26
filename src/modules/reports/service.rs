@@ -280,7 +280,7 @@ impl ReportsService {
         &self,
         months: u32,
     ) -> ErpResult<InventoryTurnoverAnalysis> {
-        let inventory_status = self.repository.get_inventory_status().await?;
+        let _inventory_status = self.repository.get_inventory_status().await?;
         let end_date = Utc::now().date_naive();
         let start_date = end_date - chrono::Duration::days((months * 30) as i64);
 

@@ -121,7 +121,7 @@ impl InventoryServiceImpl {
         Ok(())
     }
 
-    async fn check_references_before_delete(&self, product_id: Uuid) -> ErpResult<bool> {
+    async fn check_references_before_delete(&self, _product_id: Uuid) -> ErpResult<bool> {
         // TODO: Check if product is referenced in orders, invoices, etc.
         // For now, return false (no references)
         Ok(false)
@@ -166,7 +166,7 @@ impl InventoryService for InventoryServiceImpl {
     async fn create_product(
         &self,
         request: CreateInventoryItemRequest,
-        user_id: Uuid,
+        _user_id: Uuid,
     ) -> ErpResult<InventoryItemResponse> {
         info!("Creating new product: {}", request.name);
 
@@ -273,7 +273,7 @@ impl InventoryService for InventoryServiceImpl {
         &self,
         id_or_sku: &str,
         request: UpdateInventoryItemRequest,
-        user_id: Uuid,
+        _user_id: Uuid,
     ) -> ErpResult<InventoryItemResponse> {
         info!("Updating product: {}", id_or_sku);
 
@@ -317,7 +317,7 @@ impl InventoryService for InventoryServiceImpl {
         Ok(inventory_item.to_response())
     }
 
-    async fn delete_product(&self, id_or_sku: &str, force: bool, user_id: Uuid) -> ErpResult<()> {
+    async fn delete_product(&self, id_or_sku: &str, force: bool, _user_id: Uuid) -> ErpResult<()> {
         info!("Deleting product: {} (force: {})", id_or_sku, force);
 
         let product = self.get_product_by_id_or_sku(id_or_sku).await?;
@@ -448,7 +448,7 @@ impl InventoryService for InventoryServiceImpl {
         &self,
         id_or_sku: &str,
         quantity: i32,
-        reference_id: Uuid,
+        _reference_id: Uuid,
     ) -> ErpResult<bool> {
         info!("Reserving {} units for product: {}", quantity, id_or_sku);
 
@@ -475,7 +475,7 @@ impl InventoryService for InventoryServiceImpl {
         &self,
         id_or_sku: &str,
         quantity: i32,
-        reference_id: Uuid,
+        _reference_id: Uuid,
     ) -> ErpResult<bool> {
         info!(
             "Releasing {} units reservation for product: {}",
@@ -511,7 +511,7 @@ impl InventoryService for InventoryServiceImpl {
         &self,
         category: Option<String>,
         price_adjustment: Decimal,
-        user_id: Uuid,
+        _user_id: Uuid,
     ) -> ErpResult<i64> {
         info!(
             "Bulk updating prices - category: {:?}, adjustment: {}",

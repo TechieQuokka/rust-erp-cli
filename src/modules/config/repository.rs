@@ -4,7 +4,7 @@ use crate::core::database::DatabaseConnection;
 use crate::modules::config::models::*;
 use crate::utils::error::{ErpError, ErpResult};
 use async_trait::async_trait;
-use sqlx::{Row, postgres::PgRow};
+use sqlx::{postgres::PgRow, Row};
 use std::sync::Arc;
 use uuid::Uuid;
 
@@ -64,38 +64,37 @@ impl ConfigRepository {
 
     /// SQL 쿼리에서 ConfigItem 생성
     fn row_to_config_item(&self, row: &PgRow) -> ErpResult<ConfigItem> {
-        let id_str: String = row.try_get("id").map_err(|e| {
-            ErpError::database(format!("Failed to get id from row: {}", e))
-        })?;
+        let id_str: String = row
+            .try_get("id")
+            .map_err(|e| ErpError::database(format!("Failed to get id from row: {}", e)))?;
 
-        let id = Uuid::parse_str(&id_str).map_err(|e| {
-            ErpError::database(format!("Failed to parse UUID: {}", e))
-        })?;
+        let id = Uuid::parse_str(&id_str)
+            .map_err(|e| ErpError::database(format!("Failed to parse UUID: {}", e)))?;
 
-        let created_at_str: String = row.try_get("created_at").map_err(|e| {
-            ErpError::database(format!("Failed to get created_at from row: {}", e))
-        })?;
+        let created_at_str: String = row
+            .try_get("created_at")
+            .map_err(|e| ErpError::database(format!("Failed to get created_at from row: {}", e)))?;
 
-        let updated_at_str: String = row.try_get("updated_at").map_err(|e| {
-            ErpError::database(format!("Failed to get updated_at from row: {}", e))
-        })?;
+        let updated_at_str: String = row
+            .try_get("updated_at")
+            .map_err(|e| ErpError::database(format!("Failed to get updated_at from row: {}", e)))?;
 
-        let created_at = created_at_str.parse().map_err(|e| {
-            ErpError::database(format!("Failed to parse created_at: {}", e))
-        })?;
+        let created_at = created_at_str
+            .parse()
+            .map_err(|e| ErpError::database(format!("Failed to parse created_at: {}", e)))?;
 
-        let updated_at = updated_at_str.parse().map_err(|e| {
-            ErpError::database(format!("Failed to parse updated_at: {}", e))
-        })?;
+        let updated_at = updated_at_str
+            .parse()
+            .map_err(|e| ErpError::database(format!("Failed to parse updated_at: {}", e)))?;
 
         Ok(ConfigItem {
             id,
-            key: row.try_get("key").map_err(|e| {
-                ErpError::database(format!("Failed to get key from row: {}", e))
-            })?,
-            value: row.try_get("value").map_err(|e| {
-                ErpError::database(format!("Failed to get value from row: {}", e))
-            })?,
+            key: row
+                .try_get("key")
+                .map_err(|e| ErpError::database(format!("Failed to get key from row: {}", e)))?,
+            value: row
+                .try_get("value")
+                .map_err(|e| ErpError::database(format!("Failed to get value from row: {}", e)))?,
             description: row.try_get("description").unwrap_or(None),
             category: row.try_get("category").map_err(|e| {
                 ErpError::database(format!("Failed to get category from row: {}", e))
@@ -151,7 +150,10 @@ impl ConfigRepositoryTrait for ConfigRepository {
         match sqlx::query(query).bind(key).fetch_one(pool).await {
             Ok(row) => Ok(Some(self.row_to_config_item(&row)?)),
             Err(sqlx::Error::RowNotFound) => Ok(None),
-            Err(e) => Err(ErpError::database(format!("Failed to get config by key: {}", e))),
+            Err(e) => Err(ErpError::database(format!(
+                "Failed to get config by key: {}",
+                e
+            ))),
         }
     }
 
@@ -160,10 +162,17 @@ impl ConfigRepositoryTrait for ConfigRepository {
 
         let query = "SELECT * FROM config_items WHERE id = ?1";
 
-        match sqlx::query(query).bind(id.to_string()).fetch_one(pool).await {
+        match sqlx::query(query)
+            .bind(id.to_string())
+            .fetch_one(pool)
+            .await
+        {
             Ok(row) => Ok(Some(self.row_to_config_item(&row)?)),
             Err(sqlx::Error::RowNotFound) => Ok(None),
-            Err(e) => Err(ErpError::database(format!("Failed to get config by id: {}", e))),
+            Err(e) => Err(ErpError::database(format!(
+                "Failed to get config by id: {}",
+                e
+            ))),
         }
     }
 
@@ -197,7 +206,9 @@ impl ConfigRepositoryTrait for ConfigRepository {
             query = query.bind(param);
         }
 
-        let rows = query.fetch_all(pool).await
+        let rows = query
+            .fetch_all(pool)
+            .await
             .map_err(|e| ErpError::database(format!("Failed to get configs by filter: {}", e)))?;
 
         let mut configs = Vec::new();
@@ -212,7 +223,9 @@ impl ConfigRepositoryTrait for ConfigRepository {
         let pool = self.db.pool();
 
         let query = "SELECT * FROM config_items ORDER BY category, key";
-        let rows = sqlx::query(query).fetch_all(pool).await
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
             .map_err(|e| ErpError::database(format!("Failed to get all configs: {}", e)))?;
 
         let mut configs = Vec::new();
@@ -227,14 +240,14 @@ impl ConfigRepositoryTrait for ConfigRepository {
         let pool = self.db.pool();
 
         // 현재 설정 조회
-        let current = self.get_by_id(id).await?
+        let current = self
+            .get_by_id(id)
+            .await?
             .ok_or_else(|| ErpError::not_found("ConfigItem", id.to_string()))?;
 
         // 읽기 전용 설정 확인
         if current.is_readonly {
-            return Err(ErpError::forbidden(
-                "Cannot update readonly configuration"
-            ));
+            return Err(ErpError::forbidden("Cannot update readonly configuration"));
         }
 
         let mut query_parts = Vec::new();
@@ -278,11 +291,14 @@ impl ConfigRepositoryTrait for ConfigRepository {
         }
         query = query.bind(id.to_string());
 
-        query.execute(pool).await
+        query
+            .execute(pool)
+            .await
             .map_err(|e| ErpError::database(format!("Failed to update config: {}", e)))?;
 
         // 업데이트된 설정 조회 후 반환
-        self.get_by_id(id).await?
+        self.get_by_id(id)
+            .await?
             .ok_or_else(|| ErpError::internal("Updated config not found"))
     }
 
@@ -290,14 +306,14 @@ impl ConfigRepositoryTrait for ConfigRepository {
         let pool = self.db.pool();
 
         // 설정이 존재하는지 먼저 확인
-        let config = self.get_by_id(id).await?
+        let config = self
+            .get_by_id(id)
+            .await?
             .ok_or_else(|| ErpError::not_found("ConfigItem", id.to_string()))?;
 
         // 읽기 전용 설정은 삭제 불가
         if config.is_readonly {
-            return Err(ErpError::forbidden(
-                "Cannot delete readonly configuration"
-            ));
+            return Err(ErpError::forbidden("Cannot delete readonly configuration"));
         }
 
         let query = "DELETE FROM config_items WHERE id = ?1";
@@ -314,14 +330,14 @@ impl ConfigRepositoryTrait for ConfigRepository {
         let pool = self.db.pool();
 
         // 설정이 존재하는지 먼저 확인
-        let config = self.get_by_key(key).await?
+        let config = self
+            .get_by_key(key)
+            .await?
             .ok_or_else(|| ErpError::not_found("ConfigItem", key.to_string()))?;
 
         // 읽기 전용 설정은 삭제 불가
         if config.is_readonly {
-            return Err(ErpError::forbidden(
-                "Cannot delete readonly configuration"
-            ));
+            return Err(ErpError::forbidden("Cannot delete readonly configuration"));
         }
 
         let query = "DELETE FROM config_items WHERE key = ?1";
@@ -344,7 +360,8 @@ impl ConfigRepositoryTrait for ConfigRepository {
             .await
             .map_err(|e| ErpError::database(format!("Failed to check key existence: {}", e)))?;
 
-        let count: i64 = row.try_get("count")
+        let count: i64 = row
+            .try_get("count")
             .map_err(|e| ErpError::database(format!("Failed to get count: {}", e)))?;
 
         Ok(count > 0)
@@ -354,12 +371,15 @@ impl ConfigRepositoryTrait for ConfigRepository {
         let pool = self.db.pool();
 
         let query = "SELECT DISTINCT category FROM config_items ORDER BY category";
-        let rows = sqlx::query(query).fetch_all(pool).await
+        let rows = sqlx::query(query)
+            .fetch_all(pool)
+            .await
             .map_err(|e| ErpError::database(format!("Failed to get categories: {}", e)))?;
 
         let mut categories = Vec::new();
         for row in rows {
-            let category: String = row.try_get("category")
+            let category: String = row
+                .try_get("category")
                 .map_err(|e| ErpError::database(format!("Failed to get category: {}", e)))?;
             categories.push(category);
         }

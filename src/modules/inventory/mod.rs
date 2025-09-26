@@ -115,7 +115,7 @@ impl InventoryModule {
     /// 모듈 통계 정보를 반환합니다.
     pub async fn get_statistics(&self) -> ErpResult<InventoryModuleStats> {
         let valuation = self.service.get_inventory_valuation().await?;
-        let low_stock_alerts = self.service.get_low_stock_alerts(None).await?;
+        let _low_stock_alerts = self.service.get_low_stock_alerts(None).await?;
         let reorder_items = self.service.get_products_requiring_reorder().await?;
 
         Ok(InventoryModuleStats {

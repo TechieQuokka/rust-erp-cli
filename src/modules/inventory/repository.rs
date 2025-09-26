@@ -315,7 +315,7 @@ impl InventoryRepository for PostgresInventoryRepository {
                 ))
             })?;
 
-        let previous_quantity = product.quantity;
+        let _previous_quantity = product.quantity;
 
         // Create stock movement with user_id
         let mut movement = product.adjust_quantity(request.quantity_change, request.reason.clone());
@@ -369,7 +369,7 @@ impl InventoryRepository for PostgresInventoryRepository {
     ) -> ErpResult<Vec<StockMovementResponse>> {
         let limit = limit.unwrap_or(50).min(200); // Cap at 200
 
-        let (where_clause, query) = if let Some(pid) = product_id {
+        let (_where_clause, query) = if let Some(_pid) = product_id {
             (
                 "WHERE sm.product_id = $1",
                 format!(
@@ -582,7 +582,7 @@ impl InventoryRepository for PostgresInventoryRepository {
     }
 
     async fn sku_exists(&self, sku: &str, exclude_id: Option<Uuid>) -> ErpResult<bool> {
-        let (query, count) = if let Some(id) = exclude_id {
+        let (_query, count) = if let Some(id) = exclude_id {
             (
                 "SELECT COUNT(*) FROM products WHERE UPPER(sku) = UPPER($1) AND id != $2",
                 sqlx::query(

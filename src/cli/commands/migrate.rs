@@ -4,10 +4,10 @@ use crate::core::database::connection::DatabaseManager;
 use crate::core::database::migration::{DatabaseMigrator, MigrationRunner, PostgresMigrator};
 use crate::utils::error::{ErpError, ErpResult};
 use chrono::{DateTime, Local};
-use comfy_table::{Table, Cell, Color};
+use comfy_table::{Cell, Color, Table};
 use std::fs;
 use std::path::Path;
-use tracing::{info, warn, error};
+use tracing::{error, info, warn};
 
 pub async fn handle_migrate_command(command: MigrateCommands, config: AppConfig) -> ErpResult<()> {
     match command {
@@ -42,7 +42,7 @@ async fn init_database(config: AppConfig, force: bool) -> ErpResult<()> {
     Ok(())
 }
 
-async fn run_migrations(config: AppConfig, target: Option<String>, dir: String) -> ErpResult<()> {
+async fn run_migrations(config: AppConfig, _target: Option<String>, dir: String) -> ErpResult<()> {
     info!("Running database migrations...");
 
     DatabaseManager::initialize(config.database.clone()).await?;
@@ -81,7 +81,11 @@ async fn run_migrations(config: AppConfig, target: Option<String>, dir: String) 
     Ok(())
 }
 
-async fn rollback_migrations(config: AppConfig, target: Option<String>, dir: String) -> ErpResult<()> {
+async fn rollback_migrations(
+    config: AppConfig,
+    target: Option<String>,
+    dir: String,
+) -> ErpResult<()> {
     info!("Rolling back database migrations...");
 
     DatabaseManager::initialize(config.database.clone()).await?;
@@ -136,13 +140,12 @@ async fn show_migration_status(config: AppConfig, dir: String) -> ErpResult<()> 
 
     // Display status table
     let mut table = Table::new();
-    table
-        .set_header(vec![
-            Cell::new("Version").fg(Color::Blue),
-            Cell::new("Name").fg(Color::Blue),
-            Cell::new("Status").fg(Color::Blue),
-            Cell::new("Executed At").fg(Color::Blue),
-        ]);
+    table.set_header(vec![
+        Cell::new("Version").fg(Color::Blue),
+        Cell::new("Name").fg(Color::Blue),
+        Cell::new("Status").fg(Color::Blue),
+        Cell::new("Executed At").fg(Color::Blue),
+    ]);
 
     // Show applied migrations
     for migration in &status.applied {
@@ -201,7 +204,7 @@ async fn generate_migration(name: String, dir: String) -> ErpResult<()> {
     }
 
     // Generate version number based on current timestamp
-    let timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
+    let _timestamp = chrono::Utc::now().format("%Y%m%d%H%M%S");
     let version = format!("{:03}", get_next_migration_version(&dir).unwrap_or(1));
     let filename = format!("{}_{}.sql", version, name.replace(" ", "_").to_lowercase());
     let filepath = migrations_path.join(&filename);
@@ -261,9 +264,13 @@ async fn test_database_connection(config: AppConfig) -> ErpResult<()> {
     Ok(())
 }
 
-async fn create_migrator(connection: &std::sync::Arc<crate::core::database::connection::DatabaseConnection>) -> ErpResult<DatabaseMigrator> {
+async fn create_migrator(
+    connection: &std::sync::Arc<crate::core::database::connection::DatabaseConnection>,
+) -> ErpResult<DatabaseMigrator> {
     // Currently the system only supports PostgreSQL
-    Ok(DatabaseMigrator::Postgres(PostgresMigrator::new(connection.pool().clone())))
+    Ok(DatabaseMigrator::Postgres(PostgresMigrator::new(
+        connection.pool().clone(),
+    )))
 }
 
 fn get_next_migration_version(dir: &str) -> Option<u32> {

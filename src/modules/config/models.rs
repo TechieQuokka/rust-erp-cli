@@ -9,9 +9,7 @@ fn display_option(opt: &Option<String>) -> String {
 }
 
 /// 설정 항목 모델
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
-#[derive(sqlx::FromRow)]
-#[derive(tabled::Tabled)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, sqlx::FromRow, tabled::Tabled)]
 pub struct ConfigItem {
     pub id: Uuid,
     pub key: String,
@@ -296,6 +294,9 @@ mod tests {
     fn test_config_category_conversion() {
         assert_eq!(ConfigCategory::from("database"), ConfigCategory::Database);
         assert_eq!(ConfigCategory::from("auth"), ConfigCategory::Authentication);
-        assert_eq!(ConfigCategory::from("custom"), ConfigCategory::Custom("custom".to_string()));
+        assert_eq!(
+            ConfigCategory::from("custom"),
+            ConfigCategory::Custom("custom".to_string())
+        );
     }
 }
