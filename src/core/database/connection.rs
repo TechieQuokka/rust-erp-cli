@@ -2,7 +2,6 @@ use crate::core::config::DatabaseConfig;
 use crate::core::logging::DatabaseLogger;
 use crate::utils::error::{ErpError, ErpResult};
 use sqlx::{migrate::MigrateDatabase, Pool, Postgres, Row};
-use std::str::FromStr;
 use std::sync::Arc;
 
 pub type DatabasePool = Pool<Postgres>;

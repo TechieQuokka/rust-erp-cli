@@ -151,4 +151,10 @@ impl ErpError {
             message: format!("Database error: {}", message.into()),
         }
     }
+
+    /// 권한 거부 에러 생성 (간단한 버전)
+    pub fn forbidden<T: Into<String>>(message: T) -> Self {
+        Self::Authorization(message.into())
+    }
 }
+

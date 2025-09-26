@@ -2,7 +2,7 @@
 
 pub mod loader;
 
-use crate::utils::error::{ErpError, ErpResult};
+use crate::utils::error::ErpResult;
 use config::{Config, Environment, File};
 use serde::{Deserialize, Serialize};
 use std::env;
@@ -96,23 +96,23 @@ impl AppConfig {
     pub async fn load() -> ErpResult<Self> {
         let environment = env::var("ERP_ENV").unwrap_or_else(|_| "development".to_string());
 
-        let mut config = Config::builder()
+        let mut builder = Config::builder()
             // 기본 설정 로드
             .add_source(File::with_name("config/default").required(false))
             // 환경별 설정 로드
             .add_source(File::with_name(&format!("config/{}", environment)).required(false))
             // 환경변수로 오버라이드
-            .add_source(Environment::with_prefix("ERP"))
-            .build()?;
+            .add_source(Environment::with_prefix("ERP"));
 
         // 환경변수에서 DATABASE_URL, JWT_SECRET 등을 직접 처리
         if let Ok(database_url) = env::var("DATABASE_URL") {
-            config.set("database.url", database_url)?;
+            builder = builder.set_override("database.url", database_url)?;
         }
         if let Ok(jwt_secret) = env::var("JWT_SECRET") {
-            config.set("auth.jwt_secret", jwt_secret)?;
+            builder = builder.set_override("auth.jwt_secret", jwt_secret)?;
         }
 
+        let config = builder.build()?;
         let app_config: AppConfig = config.try_deserialize()?;
         Ok(app_config)
     }

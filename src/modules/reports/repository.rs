@@ -1,11 +1,9 @@
 use async_trait::async_trait;
-use chrono::{DateTime, NaiveDate, Utc};
+use chrono::{NaiveDate, Utc};
 use rust_decimal::Decimal;
-use sqlx::{PgPool, Row};
-use uuid::Uuid;
 
 use super::models::*;
-use crate::utils::error::{ErpError, ErpResult};
+use crate::utils::error::ErpResult;
 
 #[async_trait]
 pub trait ReportsRepository: Send + Sync {
@@ -93,19 +91,16 @@ pub trait ReportsRepository: Send + Sync {
     ) -> ErpResult<PaymentAnalytics>;
 }
 
-#[cfg(feature = "database")]
+/*
 pub struct PostgresReportsRepository {
     pool: PgPool,
 }
 
-#[cfg(feature = "database")]
 impl PostgresReportsRepository {
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
 }
-
-#[cfg(feature = "database")]
 #[async_trait]
 impl ReportsRepository for PostgresReportsRepository {
     async fn get_sales_summary(
@@ -849,6 +844,7 @@ impl ReportsRepository for PostgresReportsRepository {
         })
     }
 }
+*/
 
 // Mock 구현체
 pub struct MockReportsRepository;

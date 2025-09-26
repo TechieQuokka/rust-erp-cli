@@ -1,6 +1,6 @@
 use rust_decimal::Decimal;
 use std::sync::Arc;
-use tracing::{error, info, warn};
+use tracing::{info, warn};
 use uuid::Uuid;
 
 use crate::modules::customers::models::*;

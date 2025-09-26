@@ -103,7 +103,7 @@ impl InventoryHandler {
         };
 
         // TODO: Get actual user_id from authentication context
-        let user_id = Uuid::new_v4();
+        let _user_id = Uuid::new_v4();
 
         // TODO: Wire with inventory service dependency injection
         // For now, create a mock response to allow compilation
@@ -167,7 +167,7 @@ impl InventoryHandler {
         };
 
         // 필터 생성
-        let filter = InventoryFilter {
+        let _filter = InventoryFilter {
             category: validated_category.clone(),
             low_stock_only: if low_stock { Some(true) } else { None },
             page: Some(validated_page),
@@ -264,7 +264,7 @@ impl InventoryHandler {
         info!("Updating product: {}", id);
 
         // 입력 검증
-        let validated_id = CliValidator::validate_id_or_sku(id)?;
+        let _validated_id = CliValidator::validate_id_or_sku(id)?;
 
         let validated_name = match name {
             Some(n) => Some(CliValidator::validate_product_name(n)?),
@@ -316,7 +316,7 @@ impl InventoryHandler {
         }
 
         // TODO: Get actual user_id from authentication context
-        let user_id = Uuid::new_v4();
+        let _user_id = Uuid::new_v4();
 
         // TODO: Wire with inventory service
         // For now, create a mock response to allow compilation
@@ -396,7 +396,7 @@ impl InventoryHandler {
         }
 
         // TODO: Get actual user_id from authentication context
-        let user_id = Uuid::new_v4();
+        let _user_id = Uuid::new_v4();
 
         // TODO: Wire with inventory service
         // match service.delete_product(&validated_id, force, user_id).await {

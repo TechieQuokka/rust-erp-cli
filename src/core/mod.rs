@@ -6,7 +6,7 @@ pub mod config;
 pub mod database;
 pub mod logging;
 
-pub use auth::*;
-pub use config::*;
-pub use database::*;
-pub use logging::*;
+pub use auth::{AuthService, LoginRequest};
+pub use config::{AppConfig, DatabaseConfig, LoggingConfig, AuthConfig};
+pub use database::{DatabaseManager, DatabaseConnection, TransactionManager, QueryLogger, PoolInfo};
+pub use logging::{DatabaseLogger};

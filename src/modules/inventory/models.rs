@@ -1,5 +1,5 @@
 use crate::core::database::models::product::{
-    CreateProductRequest, Product, ProductFilter, ProductStatus, StockMovement, StockMovementType,
+    CreateProductRequest, Product, ProductFilter, ProductStatus, StockMovementType,
     StockStatus, UpdateProductRequest,
 };
 use chrono::{DateTime, Utc};

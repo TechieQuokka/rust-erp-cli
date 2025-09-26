@@ -52,12 +52,12 @@ impl ConfigLoader {
             config_builder = self.add_config_files(config_builder, config_path)?;
         }
 
-        let mut config = config_builder
+        config_builder = self.apply_environment_overrides(config_builder)?;
+
+        let config = config_builder
             .add_source(Environment::with_prefix("ERP").separator("_"))
             .build()
             .map_err(|e| ErpError::config(format!("Failed to build configuration: {}", e)))?;
-
-        self.apply_environment_overrides(&mut config)?;
 
         let app_config: AppConfig = config
             .try_deserialize()
@@ -150,7 +150,10 @@ impl ConfigLoader {
         false
     }
 
-    fn apply_environment_overrides(&self, config: &mut Config) -> ErpResult<()> {
+    fn apply_environment_overrides(
+        &self,
+        mut builder: config::ConfigBuilder<config::builder::DefaultState>,
+    ) -> ErpResult<config::ConfigBuilder<config::builder::DefaultState>> {
         let env_mappings = [
             ("DATABASE_URL", "database.url"),
             ("JWT_SECRET", "auth.jwt_secret"),
@@ -166,7 +169,7 @@ impl ConfigLoader {
                     "Applying environment override: {} -> {}",
                     env_var, config_key
                 );
-                config.set(config_key, value).map_err(|e| {
+                builder = builder.set_override(config_key, value).map_err(|e| {
                     ErpError::config(format!(
                         "Failed to set config from env var {}: {}",
                         env_var, e
@@ -175,7 +178,7 @@ impl ConfigLoader {
             }
         }
 
-        Ok(())
+        Ok(builder)
     }
 
     fn validate_config(&self, config: &AppConfig) -> ErpResult<()> {

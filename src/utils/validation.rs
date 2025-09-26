@@ -8,6 +8,7 @@ lazy_static::lazy_static! {
     static ref EMAIL_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
     static ref PHONE_REGEX: Regex = Regex::new(r"^[\+]?[1-9][\d]{0,15}$").unwrap();
     static ref SKU_REGEX: Regex = Regex::new(r"^[A-Z0-9\-]{3,20}$").unwrap();
+    static ref CONFIG_KEY_REGEX: Regex = Regex::new(r"^[a-zA-Z][a-zA-Z0-9._-]*$").unwrap();
 }
 
 #[derive(Debug, Clone)]
@@ -212,6 +213,32 @@ pub fn validate_price(price: Decimal) -> ErpResult<()> {
 
 pub fn validate_uuid(uuid_str: &str, field_name: &str) -> ErpResult<Uuid> {
     Uuid::parse_str(uuid_str).map_err(|_| ErpError::validation(field_name, "invalid UUID format"))
+}
+
+pub fn is_valid_config_key(key: &str) -> bool {
+    !key.is_empty() && key.len() <= 100 && CONFIG_KEY_REGEX.is_match(key)
+}
+
+pub fn validate_config_key(key: &str) -> ErpResult<()> {
+    if key.trim().is_empty() {
+        return Err(ErpError::validation("key", "cannot be empty"));
+    }
+
+    if key.len() > 100 {
+        return Err(ErpError::validation(
+            "key",
+            "exceeds maximum length of 100 characters",
+        ));
+    }
+
+    if !CONFIG_KEY_REGEX.is_match(key) {
+        return Err(ErpError::validation(
+            "key",
+            "must start with a letter and contain only letters, numbers, dots, underscores, and hyphens",
+        ));
+    }
+
+    Ok(())
 }
 
 pub fn validate_enum_value<T>(value: &str, allowed_values: &[T], field_name: &str) -> ErpResult<()>

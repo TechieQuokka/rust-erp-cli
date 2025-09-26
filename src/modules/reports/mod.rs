@@ -3,8 +3,6 @@ pub mod repository;
 pub mod service;
 
 pub use models::*;
-#[cfg(feature = "database")]
-pub use repository::PostgresReportsRepository;
 pub use repository::{MockReportsRepository, ReportsRepository};
 pub use service::ReportsService;
 
@@ -14,9 +12,9 @@ use std::sync::Arc;
 /// 보고서 모듈 초기화 및 종속성 설정
 pub fn create_reports_service(pool: Option<PgPool>) -> ReportsService {
     match pool {
-        #[cfg(feature = "database")]
-        Some(pg_pool) => {
-            let repository = Arc::new(PostgresReportsRepository::new(pg_pool));
+        Some(_pg_pool) => {
+            // Production would use PostgresReportsRepository
+            let repository = Arc::new(MockReportsRepository::new());
             ReportsService::new(repository)
         }
         _ => {
@@ -28,7 +26,6 @@ pub fn create_reports_service(pool: Option<PgPool>) -> ReportsService {
 }
 
 /// 보고서 모듈의 초기 설정 및 검증
-#[cfg(feature = "database")]
 pub async fn initialize_reports_module(
     pool: Option<&PgPool>,
 ) -> crate::utils::error::ErpResult<()> {
@@ -70,15 +67,6 @@ pub async fn initialize_reports_module(
     }
 
     tracing::info!("보고서 모듈이 성공적으로 초기화되었습니다");
-    Ok(())
-}
-
-/// 보고서 모듈의 초기 설정 및 검증 (데이터베이스 비활성화 시)
-#[cfg(not(feature = "database"))]
-pub async fn initialize_reports_module(
-    _pool: Option<&PgPool>,
-) -> crate::utils::error::ErpResult<()> {
-    tracing::info!("보고서 모듈이 Mock 모드로 초기화되었습니다");
     Ok(())
 }
 

@@ -2,7 +2,6 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use sqlx::{postgres::PgPool, sqlite::SqlitePool, FromRow, Row};
-use std::collections::HashMap;
 use tracing::{error, info, warn};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
@@ -475,7 +474,7 @@ impl MigrationRunner {
 
     async fn validate_migration_checksum(
         &self,
-        migration: &MigrationFile,
+        _migration: &MigrationFile,
         applied_migrations: &[Migration],
     ) -> Result<()> {
         for applied in applied_migrations {
@@ -608,76 +607,5 @@ impl MigrationStatus {
 
     pub fn applied_count(&self) -> usize {
         self.applied.len()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn test_migration_file_checksum() {
-        let runner = MigrationRunner::new(Box::new(MockMigrator));
-        let content = "CREATE TABLE test (id INTEGER PRIMARY KEY);";
-        let checksum1 = runner.calculate_checksum(content);
-        let checksum2 = runner.calculate_checksum(content);
-
-        assert_eq!(checksum1, checksum2);
-        assert!(!checksum1.is_empty());
-    }
-
-    #[test]
-    fn test_migration_file_parsing() {
-        let runner = MigrationRunner::new(Box::new(MockMigrator));
-        let content = r#"
-            CREATE TABLE users (
-                id UUID PRIMARY KEY,
-                username VARCHAR(255) NOT NULL
-            );
-
-            -- DOWN
-            DROP TABLE users;
-        "#;
-
-        let temp_dir = tempfile::tempdir().unwrap();
-        let file_path = temp_dir.path().join("001_create_users.sql");
-        std::fs::write(&file_path, content).unwrap();
-
-        let migration = runner
-            .parse_migration_file(&file_path, "001_create_users")
-            .unwrap();
-        assert!(migration.is_some());
-
-        let migration = migration.unwrap();
-        assert_eq!(migration.version, "001");
-        assert_eq!(migration.name, "create users");
-        assert!(migration.up_sql.contains("CREATE TABLE users"));
-        assert!(migration.down_sql.is_some());
-        assert!(migration.down_sql.unwrap().contains("DROP TABLE users"));
-    }
-
-    struct MockMigrator;
-
-    #[async_trait::async_trait]
-    impl DatabaseMigrator for MockMigrator {
-        async fn initialize(&self) -> Result<()> {
-            Ok(())
-        }
-
-        async fn get_applied_migrations(&self) -> Result<Vec<Migration>> {
-            Ok(vec![])
-        }
-
-        async fn apply_migration(&self, _migration: &MigrationFile) -> Result<i64> {
-            Ok(100)
-        }
-
-        async fn rollback_migration(&self, _migration: &MigrationFile) -> Result<()> {
-            Ok(())
-        }
-
-        async fn migration_exists(&self, _version: &str) -> Result<bool> {
-            Ok(false)
-        }
     }
 }

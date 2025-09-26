@@ -4,7 +4,7 @@ pub mod validator;
 
 use crate::core::config::AppConfig;
 use crate::utils::error::ErpResult;
-pub use parser::{Cli, Commands, LogLevel};
+pub use parser::{Cli, Commands, LogLevel, MigrateCommands};
 
 impl Cli {
     /// CLI 실행
@@ -16,6 +16,7 @@ impl Cli {
                 Commands::Sales(cmd) => commands::SalesHandler::handle(cmd, &config).await,
                 Commands::Reports(cmd) => commands::ReportsHandler::handle(cmd, &config).await,
                 Commands::Config(cmd) => commands::ConfigHandler::handle(cmd, &config).await,
+                Commands::Migrate(cmd) => commands::migrate::handle_migrate_command(cmd.clone(), config).await,
             },
             None => {
                 // 기본 도움말 표시

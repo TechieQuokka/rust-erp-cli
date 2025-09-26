@@ -44,6 +44,9 @@ pub enum Commands {
     /// 설정 관리 명령어들
     #[clap(subcommand)]
     Config(ConfigCommands),
+    /// 데이터베이스 마이그레이션 명령어들
+    #[clap(subcommand)]
+    Migrate(MigrateCommands),
 }
 
 #[derive(Debug, clap::Subcommand)]
@@ -339,6 +342,50 @@ pub enum ConfigCommands {
         #[clap(long)]
         force: bool,
     },
+}
+
+#[derive(Debug, Clone, clap::Subcommand)]
+pub enum MigrateCommands {
+    /// 데이터베이스 초기화 (처음 실행 시)
+    Init {
+        /// 강제 초기화 (기존 데이터 삭제)
+        #[clap(long)]
+        force: bool,
+    },
+    /// 마이그레이션 실행 (최신 상태로 업데이트)
+    Up {
+        /// 특정 버전까지만 실행
+        #[clap(long)]
+        target: Option<String>,
+        /// 마이그레이션 파일 디렉토리
+        #[clap(long, default_value = "migrations")]
+        dir: String,
+    },
+    /// 마이그레이션 롤백
+    Down {
+        /// 롤백할 버전 (지정하지 않으면 1단계만)
+        #[clap(long)]
+        target: Option<String>,
+        /// 마이그레이션 파일 디렉토리
+        #[clap(long, default_value = "migrations")]
+        dir: String,
+    },
+    /// 마이그레이션 상태 확인
+    Status {
+        /// 마이그레이션 파일 디렉토리
+        #[clap(long, default_value = "migrations")]
+        dir: String,
+    },
+    /// 새 마이그레이션 파일 생성
+    Generate {
+        /// 마이그레이션 이름
+        name: String,
+        /// 마이그레이션 파일 디렉토리
+        #[clap(long, default_value = "migrations")]
+        dir: String,
+    },
+    /// 데이터베이스 연결 테스트
+    Test,
 }
 
 impl Cli {
