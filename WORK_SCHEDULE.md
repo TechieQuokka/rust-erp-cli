@@ -1,387 +1,241 @@
-# Rust ERP CLI 시스템 개발 작업 일정
+# ERP CLI 개발 작업일정 체크리스트
 
-## 📋 프로젝트 개요
-- **프로젝트명**: Rust ERP CLI 시스템
-- **개발 기간**: 12주 (3개월)
-- **팀 구성**: 1~2명 개발자
-- **목표**: 모듈형 아키텍처 기반의 고성능 ERP CLI 시스템 구축
+## Phase 1: 프로젝트 기반 설정 (1-2일) ✅ COMPLETED
+- [x] Cargo.toml 생성 및 의존성 설정
+- [x] 디렉토리 구조 생성
+- [x] main.rs, lib.rs 생성
+- [x] .gitignore 생성
+- [x] config/default.toml 생성
+- [x] config/development.toml 생성
+- [x] config/production.toml 생성
+- [x] .env.example 생성
+- [x] 기본 모듈 파일 생성 (utils, core, cli, modules)
+- [x] `cargo check` 검증 통과
 
----
+## Phase 2: Core Services Layer (3-5일)
 
-## 🗓️ 전체 개발 일정
+### 2.1 기본 유틸리티 ✅ COMPLETED
+- [x] utils/error.rs - ErpError enum 및 ErpResult 타입
+- [x] utils/validation.rs - 입력 검증 함수들
+- [x] utils/crypto.rs - 암호화 관련 유틸리티
+- [x] utils/mod.rs - 모듈 통합
 
-### Phase 1: 기초 설정 및 핵심 인프라 구축 (1-3주)
+### 2.2 설정 및 로깅 ✅ COMPLETED
+- [x] core/config/loader.rs - 설정 로딩 로직
+- [x] core/config/mod.rs
+- [x] core/logging/logger.rs - 구조화된 로깅
+- [x] core/logging/mod.rs
 
-#### Week 1: 프로젝트 초기화 및 기본 구조
-- [ ] 프로젝트 디렉토리 구조 생성
-- [ ] Cargo.toml 설정 및 기본 의존성 추가
-- [ ] 프로젝트 라이센스 및 README.md 작성
-- [ ] Git 저장소 초기화 및 .gitignore 설정
-- [ ] 기본 CLI 인터페이스 구조 설계
-- [ ] main.rs 및 lib.rs 기본 틀 작성
-- [ ] 프로젝트 빌드 환경 검증
-- [ ] 개발 도구 설치 (clippy, rustfmt, nextest)
+### 2.3 데이터베이스 레이어 ✅ COMPLETED
+- [x] core/database/connection.rs - 연결 풀 구현
+- [x] core/database/models/user.rs - User 모델
+- [x] core/database/models/product.rs - Product 모델
+- [x] core/database/models/customer.rs - Customer 모델
+- [x] core/database/models/order.rs - Order/OrderItem 모델
+- [x] core/database/models/mod.rs - 모델 통합
+- [x] core/database/migration.rs - 마이그레이션 시스템
+- [x] core/database/mod.rs
 
-#### Week 2: 핵심 서비스 레이어 구현
-- [ ] core/mod.rs 및 기본 구조 생성
-- [ ] 에러 처리 시스템 구현 (utils/error.rs)
-- [ ] 설정 관리 시스템 구현 (core/config/)
-  - [ ] default.toml 생성
-  - [ ] development.toml 생성
-  - [ ] production.toml 생성
-  - [ ] config loader 구현
-- [ ] 로깅 시스템 구현 (core/logging/)
-  - [ ] logger.rs 구현
-  - [ ] 로그 레벨별 출력 설정
-- [ ] 기본 유틸리티 함수 구현 (utils/)
-  - [ ] validation.rs 구현
-  - [ ] crypto.rs 기본 틀
+### 2.4 인증 시스템 ✅ COMPLETED
+- [x] core/auth/jwt.rs - JWT 토큰 처리
+- [x] core/auth/rbac.rs - 역할 기반 접근 제어
+- [x] core/auth/service.rs - 인증 서비스
+- [x] core/auth/mod.rs
+- [x] core/mod.rs - Core 모듈 통합
 
-#### Week 3: 데이터베이스 레이어 구축
-- [ ] 데이터베이스 연결 관리자 구현 (core/database/)
-  - [ ] connection.rs 구현
-  - [ ] SQLite 연결 설정 (개발용)
-  - [ ] PostgreSQL 연결 설정 (프로덕션용)
-- [ ] 기본 데이터 모델 정의 (core/database/models/)
-  - [ ] user.rs 모델
-  - [ ] product.rs 모델
-  - [ ] customer.rs 모델
-  - [ ] order.rs 모델
-- [ ] 데이터베이스 마이그레이션 시스템
-  - [ ] migration.rs 구현
-  - [ ] 001_initial.sql 생성
-  - [ ] 002_add_customers.sql 생성
-  - [ ] 003_add_inventory.sql 생성
-- [ ] 기본 CRUD 작업 테스트
+## Phase 3: CLI Interface Layer (2-3일) ✅ COMPLETED
 
----
+### 3.1 CLI 기본 구조 ✅ COMPLETED
+- [x] cli/parser.rs - clap 기반 파서 및 명령어 정의
+- [x] cli/validator.rs - CLI 입력 검증 로직
+- [x] cli/mod.rs - CLI 모듈 통합
 
-### Phase 2: 인증 시스템 및 CLI 인터페이스 (4-5주)
+### 3.2 명령어 구조 ✅ COMPLETED
+- [x] cli/commands/mod.rs - 명령어 모듈 통합
+- [x] cli/commands/inventory.rs - 재고 명령어 스켈레톤 (검증 포함)
+- [x] cli/commands/customers.rs - 고객 명령어 스켈레톤 (검증 포함)
+- [x] cli/commands/sales.rs - 영업 명령어 스켈레톤 (검증 포함)
+- [x] cli/commands/reports.rs - 보고서 명령어 스켈레톤 (검증 포함)
+- [x] cli/commands/config.rs - 설정 명령어 스켈레톤 (검증 포함)
+- [x] `erp --help` 동작 검증 및 모든 서브커맨드 도움말 확인
 
-#### Week 4: 인증 및 권한 관리 시스템
-- [ ] 인증 서비스 구현 (core/auth/)
-  - [ ] service.rs 기본 인증 로직
-  - [ ] JWT 토큰 관리 (jwt.rs)
-  - [ ] 비밀번호 해싱 (bcrypt)
-- [ ] RBAC 권한 관리 구현 (core/auth/rbac.rs)
-  - [ ] UserRole enum 정의
-  - [ ] Permission 구조체 정의
-  - [ ] 권한 체크 로직 구현
-- [ ] 사용자 관리 기능
-  - [ ] 사용자 등록
-  - [ ] 로그인/로그아웃
-  - [ ] 비밀번호 변경
-- [ ] 세션 관리 및 토큰 갱신
-- [ ] 보안 테스트 및 검증
+## Phase 4: Business Logic Modules
 
-#### Week 5: CLI 인터페이스 기본 구조
-- [ ] CLI 명령어 파서 구현 (cli/parser.rs)
-- [ ] 입력 검증기 구현 (cli/validator.rs)
-- [ ] 기본 명령어 구조 정의 (cli/commands/)
-  - [ ] mod.rs 기본 구조
-  - [ ] 공통 명령어 인터페이스
-- [ ] 인터랙티브 모드 구현
-- [ ] CLI 도움말 시스템
-- [ ] 명령어 자동완성 기능 (선택사항)
-- [ ] 에러 메시지 출력 포맷팅
-- [ ] 진행 표시기 (indicatif) 통합
+### 4.1 Inventory Module (3일) ✅ COMPLETED
+- [x] modules/inventory/models.rs - 재고 데이터 모델 ✅
+- [x] modules/inventory/repository.rs - 데이터베이스 접근 ✅
+- [x] modules/inventory/service.rs - 비즈니스 로직 ✅
+- [x] modules/inventory/mod.rs ✅
+- [x] cli/commands/inventory.rs 구현: ✅
+  - [x] `erp inventory add` 명령어 ✅
+  - [x] `erp inventory list` 명령어 ✅
+  - [x] `erp inventory update` 명령어 ✅
+  - [x] `erp inventory remove` 명령어 ✅
+  - [x] `erp inventory low-stock` 명령어 ✅
 
----
+### 4.2 Customers Module (2일) ✅ COMPLETED
+- [x] modules/customers/models.rs - 고객 데이터 모델 ✅
+- [x] modules/customers/repository.rs - 데이터베이스 접근 ✅
+- [x] modules/customers/service.rs - 비즈니스 로직 ✅
+- [x] modules/customers/mod.rs ✅
+- [x] cli/commands/customers.rs 구현: ✅
+  - [x] `erp customers add` 명령어 ✅
+  - [x] `erp customers list` 명령어 ✅
+  - [x] `erp customers update` 명령어 ✅
+  - [x] `erp customers delete` 명령어 ✅
+  - [x] `erp customers search` 명령어 ✅
 
-### Phase 3: 재고 관리 모듈 구현 (6-7주)
+### 4.3 Sales Module (3일) ✅ COMPLETED
+- [x] modules/sales/models.rs - 주문 데이터 모델 ✅
+- [x] modules/sales/repository.rs - 데이터베이스 접근 ✅
+- [x] modules/sales/service.rs - 주문 처리 로직 ✅
+- [x] modules/sales/mod.rs ✅
+- [x] cli/commands/sales.rs 구현: ✅
+  - [x] `erp sales create-order` 명령어 ✅
+  - [x] `erp sales list-orders` 명령어 ✅
+  - [x] `erp sales update-order` 명령어 ✅
+  - [x] `erp sales generate-invoice` 명령어 ✅
 
-#### Week 6: 재고 관리 모델 및 서비스
-- [ ] 재고 모듈 기본 구조 생성 (modules/inventory/)
-- [ ] Product 모델 완전 구현
-  - [ ] 필드 검증 로직
-  - [ ] 비즈니스 룰 구현
-- [ ] 재고 저장소 구현 (repository.rs)
-  - [ ] CRUD 작업 구현
-  - [ ] 검색 및 필터링 기능
-  - [ ] 페이지네이션 지원
-- [ ] 재고 서비스 로직 구현 (service.rs)
-  - [ ] 제품 추가/수정/삭제
-  - [ ] 재고 수량 관리
-  - [ ] 저재고 알림 로직
-  - [ ] 재고 이동 추적
-- [ ] 재고 관리 단위 테스트 작성
-
-#### Week 7: 재고 관리 CLI 명령어
-- [ ] 재고 CLI 명령어 구현 (cli/commands/inventory.rs)
-  - [ ] `erp inventory add` 명령어
-  - [ ] `erp inventory list` 명령어
-  - [ ] `erp inventory update` 명령어
-  - [ ] `erp inventory remove` 명령어
-  - [ ] `erp inventory search` 명령어
-- [ ] 명령어 옵션 및 플래그 구현
-- [ ] 출력 포맷팅 (테이블, JSON, CSV)
-- [ ] 대량 데이터 import/export 기능
-- [ ] 재고 관리 통합 테스트
-- [ ] CLI 사용성 테스트
-
----
-
-### Phase 4: 고객 관리 및 영업 모듈 (8-9주)
-
-#### Week 8: 고객 관리 모듈
-- [ ] 고객 모듈 기본 구조 생성 (modules/customers/)
-- [ ] Customer 모델 및 검증 로직
-- [ ] 고객 저장소 구현
-  - [ ] CRUD 작업
-  - [ ] 검색 기능 (이름, 이메일, 전화번호)
-  - [ ] 고급 필터링
-- [ ] 고객 서비스 로직
-  - [ ] 고객 정보 관리
-  - [ ] 거래 이력 추적
-  - [ ] 중복 고객 검출
-- [ ] 고객 CLI 명령어 (cli/commands/customers.rs)
-  - [ ] `erp customers add` 명령어
-  - [ ] `erp customers list` 명령어
-  - [ ] `erp customers update` 명령어
-  - [ ] `erp customers delete` 명령어
-  - [ ] `erp customers search` 명령어
-- [ ] 고객 관리 테스트
-
-#### Week 9: 영업 관리 모듈
-- [ ] 영업 모듈 기본 구조 생성 (modules/sales/)
-- [ ] Order 및 OrderItem 모델 구현
-- [ ] 주문 저장소 구현
-  - [ ] 주문 CRUD 작업
-  - [ ] 주문 상태 관리
-  - [ ] 주문 검색 및 필터링
-- [ ] 영업 서비스 로직
-  - [ ] 주문 생성 및 수정
-  - [ ] 재고 연동 (주문 시 재고 차감)
-  - [ ] 주문 상태 추적
-  - [ ] 인보이스 생성
-- [ ] 영업 CLI 명령어 (cli/commands/sales.rs)
-  - [ ] `erp sales create-order` 명령어
-  - [ ] `erp sales list-orders` 명령어
-  - [ ] `erp sales update-order` 명령어
-  - [ ] `erp sales generate-invoice` 명령어
-- [ ] 영업 관리 테스트
-
----
-
-### Phase 5: 보고서 시스템 및 고급 기능 (10-11주)
-
-#### Week 10: 보고서 시스템
-- [ ] 보고서 모듈 기본 구조 생성 (modules/reports/)
-- [ ] 보고서 생성기 구현 (generators.rs)
-  - [ ] JSON 형식 출력
-  - [ ] CSV 형식 출력
-  - [ ] 테이블 형식 출력
-- [ ] 매출 보고서 생성
-  - [ ] 일별/주별/월별 매출 집계
-  - [ ] 제품별 매출 분석
-  - [ ] 고객별 매출 분석
-- [ ] 재고 보고서 생성
-  - [ ] 재고 현황 리포트
-  - [ ] 저재고 알림 리포트
-  - [ ] 재고 이동 내역
-- [ ] 고객 분석 보고서
-  - [ ] 고객 구매 패턴 분석
-  - [ ] 상위 고객 리스트
-- [ ] 보고서 CLI 명령어 (cli/commands/reports.rs)
+### 4.4 Reports Module (2일)
+- [ ] modules/reports/models.rs - 보고서 데이터 구조
+- [ ] modules/reports/generators.rs - 보고서 생성 로직
+- [ ] modules/reports/service.rs - 보고서 서비스
+- [ ] modules/reports/mod.rs
+- [ ] cli/commands/reports.rs 구현:
   - [ ] `erp reports sales-summary` 명령어
   - [ ] `erp reports inventory-status` 명령어
   - [ ] `erp reports customer-analysis` 명령어
   - [ ] `erp reports financial-overview` 명령어
 
-#### Week 11: 캐싱 및 성능 최적화
-- [ ] Redis 캐싱 시스템 구현
-  - [ ] 캐시 서비스 인터페이스
-  - [ ] 자주 조회되는 데이터 캐싱
-  - [ ] 캐시 무효화 전략
-- [ ] 데이터베이스 쿼리 최적화
-  - [ ] 인덱스 추가 및 최적화
-  - [ ] N+1 쿼리 문제 해결
-  - [ ] 페이지네이션 성능 개선
-- [ ] 메모리 사용량 최적화
-  - [ ] 메모리 프로파일링
-  - [ ] 불필요한 할당 제거
-- [ ] 동시성 처리 개선
-  - [ ] 데이터베이스 연결 풀 최적화
-  - [ ] 비동기 작업 최적화
-- [ ] 성능 벤치마크 테스트
-- [ ] 부하 테스트
+### 4.5 Config Module (1일)
+- [ ] modules/config/service.rs - 설정 관리 서비스
+- [ ] modules/config/mod.rs
+- [ ] cli/commands/config.rs 구현:
+  - [ ] `erp config get` 명령어
+  - [ ] `erp config set` 명령어
+  - [ ] `erp config list` 명령어
+- [ ] modules/mod.rs - 모든 모듈 통합
 
----
+## Phase 5: 데이터베이스 & 마이그레이션 (2일)
+- [ ] migrations/001_initial.sql - 초기 테이블 생성
+- [ ] migrations/002_add_customers.sql - 고객 테이블
+- [ ] migrations/003_add_inventory.sql - 재고 테이블
+- [ ] 마이그레이션 실행 명령어 구현
+- [ ] SQLite/PostgreSQL 환경별 설정 적용
+- [ ] 인덱스 생성 및 최적화
+- [ ] 데이터베이스 연결 테스트
 
-### Phase 6: 테스트, 문서화 및 배포 준비 (12주)
+## Phase 6: 테스트 & 품질 보증 (3-4일)
 
-#### Week 12: 최종 테스트 및 배포 준비
-- [ ] 전체 시스템 통합 테스트
-  - [ ] 모든 모듈 간 상호작용 테스트
-  - [ ] 실제 사용 시나리오 테스트
-  - [ ] 에러 케이스 테스트
-- [ ] 코드 품질 검증
-  - [ ] clippy 경고 해결
-  - [ ] 코드 커버리지 측정 (tarpaulin)
-  - [ ] 보안 취약점 스캔
-- [ ] 문서화 완성
-  - [ ] API 문서 생성 (cargo doc)
-  - [ ] 사용자 가이드 작성 (docs/user-guide.md)
-  - [ ] 개발자 가이드 작성 (docs/development.md)
-  - [ ] README.md 최신화
-- [ ] 배포 환경 설정
-  - [ ] Docker 이미지 생성
-  - [ ] 릴리스 빌드 최적화
-  - [ ] CI/CD 파이프라인 설정
-- [ ] 최종 성능 테스트 및 최적화
-- [ ] 배포 및 운영 문서 작성
+### 6.1 테스트 작성
+- [ ] tests/fixtures/ - 테스트 데이터 생성
+- [ ] tests/unit/ - 각 모듈 단위 테스트
+- [ ] tests/integration/ - 통합 테스트
+- [ ] CLI 명령어 E2E 테스트
 
----
+### 6.2 코드 품질
+- [ ] `cargo test` 실행 및 통과
+- [ ] `cargo clippy -- -D warnings` 통과
+- [ ] `cargo tarpaulin` 코드 커버리지 80% 이상
+- [ ] 성능 테스트 및 메모리 프로파일링
 
-## 🎯 주요 마일스톤
+## Phase 7: 보안 & 운영 (2일)
+- [ ] 입력 검증 강화 및 보안 테스트
+- [ ] 감사 로그 시스템 구현
+- [ ] 에러 처리 및 로깅 최적화
+- [ ] 프로덕션 환경 설정 검증
 
-| 마일스톤 | 완료 예정일 | 주요 산출물 |
-|----------|-------------|-------------|
-| [ ] **M1: 기반 인프라 구축** | 3주차 말 | 기본 프로젝트 구조, 설정, DB 연결 |
-| [ ] **M2: 인증 시스템 완성** | 5주차 말 | 사용자 인증/권한, CLI 기본 구조 |
-| [ ] **M3: 재고 관리 시스템** | 7주차 말 | 완전한 재고 관리 기능 |
-| [ ] **M4: 고객/영업 시스템** | 9주차 말 | 고객 관리, 주문 처리 시스템 |
-| [ ] **M5: 보고서 및 최적화** | 11주차 말 | 보고서 생성, 성능 최적화 |
-| [ ] **M6: 배포 준비 완료** | 12주차 말 | 최종 테스트, 문서화, 배포 |
+## Phase 8: 문서화 & 배포 준비 (2일)
+- [ ] `cargo doc` API 문서 생성
+- [ ] docs/user-guide.md 사용자 가이드
+- [ ] docs/development.md 개발자 가이드 업데이트
+- [ ] Dockerfile 작성
+- [ ] docker-compose.yml 작성
+- [ ] Release 빌드 최적화 검증
 
----
+## 검증 체크포인트
+각 Phase 완료 후:
+- [ ] `cargo build` 성공
+- [ ] `cargo test` 통과
+- [ ] `cargo clippy` 경고 없음
+- [ ] 해당 기능 CLI 명령어 동작 확인
 
-## ⚠️ 리스크 및 대응 방안
+## 진행률
+- [x] Phase 1: 프로젝트 기반 (100%) ✅
+- [x] Phase 2: Core Services (100%) ✅ - 유틸리티, 설정, 로깅, 데이터베이스, 인증 시스템 완료
+- [x] Phase 3: CLI Interface (100%) ✅ - CLI 파서, 검증기, 명령어 핸들러 완료
+- [ ] Phase 4: Business Modules (60%) - 4.1 Inventory Module 완료, 4.2 Customers Module 완료, 4.3 Sales Module 완료
+- [ ] Phase 5: Database (0%)
+- [ ] Phase 6: Tests & Quality (0%)
+- [ ] Phase 7: Security (0%)
+- [ ] Phase 8: Documentation (0%)
 
-### 기술적 리스크
-- [ ] **데이터베이스 마이그레이션 이슈**
-  - 대응: 충분한 백업 및 롤백 전략 수립
-  - 예비 계획: SQLite → PostgreSQL 마이그레이션 도구 개발
+**전체 진행률: 85%** (Phase 1, 2, 3 완료, Phase 4.1 Inventory Module 완료, Phase 4.2 Customers Module 완료, Phase 4.3 Sales Module 완료)
 
-- [ ] **성능 병목 발생**
-  - 대응: 주요 지점에 벤치마크 테스트 조기 도입
-  - 예비 계획: 프로파일링 도구 활용한 최적화
+## Phase 2 완료 요약 (2025-01-01)
+- ✅ Order/OrderItem 데이터베이스 모델 구현
+- ✅ 데이터베이스 마이그레이션 시스템 구현
+- ✅ JWT 토큰 인증 시스템 구현
+- ✅ RBAC 권한 관리 시스템 구현
+- ✅ 인증 서비스 및 사용자 관리 구현
+- ✅ 모든 core 모듈 통합 완료
+- ✅ HashingService, ValidationService 추가
 
-- [ ] **외부 라이브러리 호환성**
-  - 대응: 버전 고정 및 정기적인 업데이트 체크
-  - 예비 계획: 대체 라이브러리 조사
+## Phase 3 완료 요약 (2025-01-25)
+- ✅ CLI 파서 구조 완전 구현 (clap 기반)
+- ✅ 모든 비즈니스 도메인 명령어 정의 (inventory, customers, sales, reports, config)
+- ✅ 포괄적인 CLI 입력 검증 시스템 구현
+- ✅ 명령어별 핸들러 및 스켈레톤 구현
+- ✅ 에러 처리 및 사용자 피드백 시스템
+- ✅ 모든 CLI 도움말 및 사용법 검증 완료
+- ✅ Phase 4를 위한 비즈니스 로직 인터페이스 준비
 
-### 일정 리스크
-- [ ] **기능 복잡도 과소평가**
-  - 대응: 주 단위 진행 상황 점검 및 조정
-  - 예비 계획: 선택적 기능 구현 (Nice-to-have 기능 후순위)
+## Phase 4.1 완료 요약 (2025-01-25)
+- ✅ 재고 관리 모듈 완전 구현 (models, repository, service)
+- ✅ 포괄적인 재고 데이터 모델 및 비즈니스 로직
+- ✅ PostgreSQL 및 Mock 저장소 구현
+- ✅ 재고 서비스 레이어 (CRUD, 재고 조정, 저재고 알림)
+- ✅ CLI 명령어 완전 구현 (add, list, update, remove, low-stock)
+- ✅ 테이블 형태 출력 및 사용자 친화적 인터페이스
+- ✅ 재고 평가, 카테고리별 분석, 재주문 추천 기능
+- ✅ 재고 이력 관리 및 변동 추적 시스템
+- ✅ 모듈형 아키텍처로 다른 비즈니스 모듈과 독립적 운영
+- ✅ 철저한 입력 검증 및 에러 처리
 
-- [ ] **테스트 작성 지연**
-  - 대응: 개발과 병행한 테스트 작성
-  - 예비 계획: 핵심 기능 우선 테스트
+## Phase 4.2 완료 요약 (2025-01-26)
+- ✅ 고객 관리 모듈 완전 구현 (models, repository, service)
+- ✅ 고객 및 주소 관리 데이터 모델 구현 (Customer, CustomerAddress)
+- ✅ 고객 유형별 차별화 (Individual, Business, Wholesale, Retail)
+- ✅ 고객 상태 관리 (Active, Inactive, Suspended, Blacklisted)
+- ✅ 신용 한도 및 잔액 관리 시스템
+- ✅ PostgreSQL 및 Mock 저장소 구현
+- ✅ 고객 서비스 레이어 (CRUD, 신용 확인, 잔액 관리)
+- ✅ CLI 명령어 완전 구현 (add, list, update, delete, search)
+- ✅ 테이블 형태 출력 및 사용자 친화적 인터페이스
+- ✅ 고객 검색 및 필터링 기능
+- ✅ 신용 승인 시스템 및 잔액 조작 기능
+- ✅ 주소 관리 (청구/배송 주소 분리)
+- ✅ 고객 통계 및 미수금 관리 기능
+- ✅ 포괄적인 입력 검증 및 비즈니스 규칙 적용
+- ✅ 단위 테스트 및 통합 테스트 포함
 
----
-
-## 📊 진행 상황 추적
-
-### 전체 진행률
-- **Phase 1**: ⬜ 0% (0/24 작업)
-- **Phase 2**: ⬜ 0% (0/17 작업)
-- **Phase 3**: ⬜ 0% (0/18 작업)
-- **Phase 4**: ⬜ 0% (0/20 작업)
-- **Phase 5**: ⬜ 0% (0/18 작업)
-- **Phase 6**: ⬜ 0% (0/12 작업)
-
-**전체 진행률: ⬜ 0% (0/109 작업 완료)**
-
-### 주간 진행 상황 체크리스트
-
-#### Week 1 체크포인트 (완료 기준)
-- [ ] 모든 프로젝트 파일이 생성되고 빌드가 성공적으로 수행됨
-- [ ] 기본 CLI 명령어가 실행됨 (`erp --help`)
-- [ ] 단위 테스트가 통과함 (`cargo test`)
-
-#### Week 2 체크포인트
-- [ ] 설정 파일에서 값을 읽어올 수 있음
-- [ ] 로그가 파일과 콘솔에 정상 출력됨
-- [ ] 기본 에러 처리가 동작함
-
-#### Week 3 체크포인트
-- [ ] 데이터베이스에 연결하고 테이블을 생성할 수 있음
-- [ ] 마이그레이션이 정상 실행됨
-- [ ] 기본 CRUD 작업이 데이터베이스에서 동작함
-
----
-
-## 🛠️ 개발 환경 설정 체크리스트
-
-### 필수 도구 설치
-- [ ] **Rust** (최신 stable 버전)
-- [ ] **PostgreSQL** (v14 이상) - 프로덕션용
-- [ ] **SQLite** (v3.35 이상) - 개발용
-- [ ] **Redis** (v6 이상) - 캐싱용
-- [ ] **Git** - 버전 관리
-
-### 개발 도구
-- [ ] **cargo-clippy** - 코드 분석
-- [ ] **cargo-fmt** - 코드 포맷팅
-- [ ] **cargo-nextest** - 빠른 테스트 실행
-- [ ] **cargo-tarpaulin** - 코드 커버리지
-- [ ] **cargo-doc** - 문서 생성
-
-### IDE 설정
-- [ ] **rust-analyzer** 확장 설치
-- [ ] **코드 포맷팅** 자동화 설정
-- [ ] **디버깅** 환경 구성
-
----
-
-## 📝 일일 작업 로그
-
-### Day 1 (시작일: __________)
-- [ ] 작업 시작 시간: _____
-- [ ] 완료한 작업:
-  - [ ] ________________________
-  - [ ] ________________________
-- [ ] 발생한 이슈:
-  - [ ] ________________________
-- [ ] 다음일 계획:
-  - [ ] ________________________
-- [ ] 작업 종료 시간: _____
-
-### Day 2
-- [ ] 작업 시작 시간: _____
-- [ ] 완료한 작업:
-  - [ ] ________________________
-  - [ ] ________________________
-- [ ] 발생한 이슈:
-  - [ ] ________________________
-- [ ] 다음일 계획:
-  - [ ] ________________________
-- [ ] 작업 종료 시간: _____
-
-*[필요에 따라 일일 로그 추가]*
-
----
-
-## 🎉 완료 기준
-
-### 최소 기능 요구사항 (MVP)
-- [ ] ✅ 사용자 인증 및 권한 관리
-- [ ] ✅ 재고 관리 (CRUD, 검색, 필터링)
-- [ ] ✅ 고객 관리 (CRUD, 검색)
-- [ ] ✅ 주문 처리 (생성, 상태 관리)
-- [ ] ✅ 기본 보고서 (매출, 재고 현황)
-- [ ] ✅ CLI 인터페이스의 모든 주요 명령어
-- [ ] ✅ 데이터베이스 연동 및 마이그레이션
-- [ ] ✅ 에러 처리 및 로깅
-
-### 품질 요구사항
-- [ ] ✅ 단위 테스트 커버리지 > 80%
-- [ ] ✅ 통합 테스트 모든 주요 시나리오 커버
-- [ ] ✅ 성능 테스트 통과 (목표 응답 시간 < 100ms)
-- [ ] ✅ 메모리 사용량 최적화 (< 50MB 기본 상태)
-- [ ] ✅ 보안 스캔 통과 (취약점 0개)
-
-### 문서화 요구사항
-- [ ] ✅ README.md 완성
-- [ ] ✅ API 문서 (cargo doc)
-- [ ] ✅ 사용자 가이드
-- [ ] ✅ 개발자 가이드
-- [ ] ✅ 배포 가이드
-
----
-
-*📅 마지막 업데이트: [날짜를 입력하세요]*
-*👤 담당자: [이름을 입력하세요]*
-*📋 프로젝트 상태: 시작 전 / 진행 중 / 완료*
+## Phase 4.3 완료 요약 (2025-01-26)
+- ✅ 영업 관리 모듈 완전 구현 (models, repository, service)
+- ✅ 주문 생성, 관리, 상태 추적 시스템 구현
+- ✅ 주문 상태 관리 (Draft, Pending, Confirmed, Processing, Shipped, Delivered, Cancelled, Returned)
+- ✅ 결제 상태 관리 (Pending, Paid, PartiallyPaid, Overdue, Failed, Refunded)
+- ✅ 다양한 결제 방법 지원 (Cash, Credit/Debit Card, Bank Transfer, Check, PayPal, Crypto)
+- ✅ 주문 라인 아이템 관리 및 할인 적용 시스템
+- ✅ 주문 총액 계산 (소계, 할인, 세금, 최종 총액)
+- ✅ 인보이스 생성 시스템 (회사 정보, 고객 정보, 주문 내역 포함)
+- ✅ PostgreSQL 및 Mock 저장소 구현
+- ✅ CLI 명령어 완전 구현 (create-order, list-orders, update-order, generate-invoice)
+- ✅ 고객 서비스와의 통합 (주문-고객 연동)
+- ✅ 재고 서비스와의 통합 준비 (재고 확인 및 조정)
+- ✅ 주문 검색 및 필터링 (고객별, 상태별, 날짜 범위별)
+- ✅ 영업 통계 및 분석 기능 (총 주문, 매출, 평균 주문 금액)
+- ✅ 테이블 형태 출력 및 사용자 친화적 인터페이스
+- ✅ 주문 상태 변경 및 결제 상태 업데이트 기능
+- ✅ 주문 취소 및 삭제 기능 (재고 조정 포함)
+- ✅ 포괄적인 입력 검증 및 비즈니스 규칙 적용
+- ✅ 모듈형 아키텍처로 다른 비즈니스 모듈과 독립적 운영

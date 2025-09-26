@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT category,\n                    COUNT(*) as product_count,\n                    COALESCE(SUM(current_stock), 0) as total_stock,\n                    COALESCE(SUM(current_stock * unit_price), 0) as total_value\n             FROM products\n             WHERE active = true\n             GROUP BY category\n             ORDER BY total_value DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "category",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "product_count",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_stock",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_value",
+        "ordinal": 3,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "65bb8065d830087d92dd3e53af5c80bbbe63902ce53cfaa5cf9e08e7f7959a10"
+}

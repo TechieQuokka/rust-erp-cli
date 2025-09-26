@@ -1,0 +1,108 @@
+# 프로덕션 환경 설정
+# 민감한 값들은 환경변수로 설정
+
+[database]
+url = "${DATABASE_URL}"
+max_connections = 20
+migrate_on_start = false
+query_timeout_seconds = 30
+idle_timeout_seconds = 300
+# 프로덕션에서는 더 엄격한 설정
+enable_query_logging = false
+
+[logging]
+level = "warn"
+format = "json"
+file = "logs/production.log"
+rotate_daily = true
+max_file_size = "50MB"
+max_files = 10
+# 프로덕션에서는 콘솔 출력 비활성화
+console_output = false
+
+[auth]
+jwt_secret = "${JWT_SECRET}"
+token_expiry_hours = 8
+password_min_length = 12
+max_login_attempts = 3
+lockout_duration_minutes = 30
+# 프로덕션 보안 강화
+require_strong_password = true
+enable_2fa = false
+
+[cache]
+redis_url = "${REDIS_URL}"
+default_ttl_seconds = 7200
+max_connections = 20
+enable_cache = true
+# 클러스터 모드 지원
+cluster_mode = false
+
+[api]
+host = "0.0.0.0"
+port = "${PORT:8080}"
+cors_enabled = false
+request_timeout_seconds = 30
+max_request_size = "5MB"
+# 프로덕션 보안 헤더
+security_headers = true
+rate_limiting = true
+
+[reports]
+output_dir = "/var/erp/reports"
+default_format = "json"
+max_records_per_report = 50000
+export_formats = ["json", "csv", "xlsx", "pdf"]
+# 프로덕션에서는 압축 활성화
+compress_reports = true
+
+[inventory]
+low_stock_threshold = 20
+auto_reorder_enabled = true
+default_currency = "KRW"
+# 프로덕션에서는 더 보수적인 설정
+safety_stock_multiplier = 1.5
+
+[sales]
+invoice_prefix = "INV"
+order_prefix = "ORD"
+default_tax_rate = 0.1
+payment_terms_days = 30
+# 프로덕션 회계 연동
+accounting_integration = true
+
+[security]
+enable_audit_log = true
+audit_retention_days = 2555  # 7년
+encrypt_sensitive_data = true
+require_password_change_days = 90
+# 프로덕션 보안 강화
+enable_ip_whitelist = false
+enable_session_monitoring = true
+max_concurrent_sessions = 3
+
+[performance]
+connection_pool_size = 25
+query_cache_size = 5000
+batch_size = 500
+timeout_seconds = 30
+# 프로덕션 성능 최적화
+enable_connection_pooling = true
+enable_prepared_statements = true
+enable_compression = true
+
+# 프로덕션 모니터링
+[monitoring]
+enable_metrics = true
+metrics_port = 9090
+health_check_port = 8081
+enable_tracing = true
+sample_rate = 0.1
+
+# 알림 설정
+[alerts]
+enable_notifications = true
+email_notifications = true
+slack_webhook = "${SLACK_WEBHOOK_URL}"
+critical_error_threshold = 10
+performance_degradation_threshold = 2.0

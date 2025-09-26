@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(SUM(current_stock * unit_price), 0) as total_value FROM products WHERE active = true",
+  "describe": {
+    "columns": [
+      {
+        "name": "total_value",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 0
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "97d3c16fbfcb7d8be4711f3daa38ed003e434b5fd0b70648d3f830133d347d87"
+}

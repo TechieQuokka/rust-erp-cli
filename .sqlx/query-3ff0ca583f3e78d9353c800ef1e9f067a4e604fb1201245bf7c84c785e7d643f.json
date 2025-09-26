@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(SUM(total_amount), 0) as total\n             FROM sales_orders\n             WHERE DATE(created_at) BETWEEN $1 AND $2\n             AND payment_status = 'paid'",
+  "describe": {
+    "columns": [
+      {
+        "name": "total",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3ff0ca583f3e78d9353c800ef1e9f067a4e604fb1201245bf7c84c785e7d643f"
+}

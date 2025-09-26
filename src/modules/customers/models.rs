@@ -1,1 +1,1 @@
-// Placeholder - TODO: Implement
+pub use crate::core::database::models::customer::*;

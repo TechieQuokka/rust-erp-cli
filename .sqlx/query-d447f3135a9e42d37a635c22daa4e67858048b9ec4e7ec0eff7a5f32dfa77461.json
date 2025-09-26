@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(SUM(soi.quantity), 0) as total\n             FROM sales_order_items soi\n             JOIN sales_orders so ON soi.order_id = so.id\n             WHERE DATE(so.created_at) BETWEEN $1 AND $2",
+  "describe": {
+    "columns": [
+      {
+        "name": "total",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "d447f3135a9e42d37a635c22daa4e67858048b9ec4e7ec0eff7a5f32dfa77461"
+}

@@ -1,0 +1,44 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT p.id, p.name, p.sku,\n                    COALESCE(SUM(soi.quantity), 0) as quantity_sold,\n                    COALESCE(SUM(soi.unit_price * soi.quantity), 0) as total_revenue\n             FROM products p\n             LEFT JOIN sales_order_items soi ON p.id = soi.product_id\n             LEFT JOIN sales_orders so ON soi.order_id = so.id\n             WHERE DATE(so.created_at) BETWEEN $1 AND $2\n             GROUP BY p.id, p.name, p.sku\n             ORDER BY quantity_sold DESC\n             LIMIT $3",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "sku",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "quantity_sold",
+        "ordinal": 3,
+        "type_info": "Float"
+      },
+      {
+        "name": "total_revenue",
+        "ordinal": 4,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 3
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "18cd90d65290bedc670b59bf6b0aacfee561b8999ceeb353194f2d7eafad1605"
+}

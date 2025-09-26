@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COALESCE(SUM(soi.quantity), 0) as pending_quantity\n                 FROM sales_order_items soi\n                 JOIN sales_orders so ON soi.order_id = so.id\n                 WHERE soi.product_id = $1 AND so.status IN ('draft', 'pending', 'confirmed')",
+  "describe": {
+    "columns": [
+      {
+        "name": "pending_quantity",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "07910ec11b6263c85421c61842bcd57ab8fe50d1a9da94117fc4bacfc8a673be"
+}

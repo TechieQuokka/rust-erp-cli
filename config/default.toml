@@ -1,0 +1,63 @@
+[database]
+# SQLite for development, PostgreSQL for production
+url = "postgresql://username:password@localhost:5513/erp_db"
+max_connections = 10
+migrate_on_start = true
+query_timeout_seconds = 30
+idle_timeout_seconds = 600
+
+[logging]
+level = "info"
+format = "json"
+file = "logs/erp.log"
+rotate_daily = true
+max_file_size = "10MB"
+max_files = 5
+
+[auth]
+jwt_secret = "4b3d7a5f827a51459b93ba7a25c34817404d7fcdc5db9b4a27319c57ff23521b"
+token_expiry_hours = 24
+password_min_length = 8
+max_login_attempts = 5
+lockout_duration_minutes = 15
+
+[cache]
+redis_url = "redis://localhost:6379"
+default_ttl_seconds = 3600
+max_connections = 10
+
+[api]
+host = "127.0.0.1"
+port = 8080
+cors_enabled = true
+request_timeout_seconds = 30
+max_request_size = "10MB"
+
+[reports]
+output_dir = "reports"
+default_format = "json"
+max_records_per_report = 10000
+export_formats = ["json", "csv", "xlsx"]
+
+[inventory]
+low_stock_threshold = 10
+auto_reorder_enabled = false
+default_currency = "KRW"
+
+[sales]
+invoice_prefix = "INV"
+order_prefix = "ORD"
+default_tax_rate = 0.1
+payment_terms_days = 30
+
+[security]
+enable_audit_log = true
+audit_retention_days = 365
+encrypt_sensitive_data = true
+require_password_change_days = 90
+
+[performance]
+connection_pool_size = 10
+query_cache_size = 1000
+batch_size = 100
+timeout_seconds = 30

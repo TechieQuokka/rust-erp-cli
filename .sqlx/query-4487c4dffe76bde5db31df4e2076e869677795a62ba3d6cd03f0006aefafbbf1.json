@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT payment_method,\n                    COUNT(*) as transaction_count,\n                    COALESCE(SUM(total_amount), 0) as total_amount\n             FROM sales_orders\n             WHERE DATE(created_at) BETWEEN $1 AND $2\n             AND payment_status = 'paid'\n             GROUP BY payment_method",
+  "describe": {
+    "columns": [
+      {
+        "name": "payment_method",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "transaction_count",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_amount",
+        "ordinal": 2,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "4487c4dffe76bde5db31df4e2076e869677795a62ba3d6cd03f0006aefafbbf1"
+}

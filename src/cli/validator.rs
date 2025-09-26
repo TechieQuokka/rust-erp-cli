@@ -1,224 +1,370 @@
-use anyhow::{bail, Result};
-use regex::Regex;
+use crate::utils::error::{ErpError, ErpResult};
+use crate::utils::validation::validate_email;
+use chrono::{NaiveDate, Utc};
+use rust_decimal::Decimal;
 use std::str::FromStr;
 
-#[derive(Default)]
-pub struct InputValidator;
+pub struct CliValidator;
 
-impl InputValidator {
-    pub fn new() -> Self {
-        Self
-    }
-
-    pub fn validate_email(email: &str) -> Result<()> {
-        let email_regex = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")?;
-
-        if email_regex.is_match(email) {
-            Ok(())
-        } else {
-            bail!("Invalid email format: {}", email)
-        }
-    }
-
-    pub fn validate_phone(phone: &str) -> Result<()> {
-        let phone_regex = Regex::new(r"^[\+]?[0-9\s\-\(\)]{10,15}$")?;
-
-        if phone_regex.is_match(phone) {
-            Ok(())
-        } else {
-            bail!("Invalid phone number format: {}", phone)
-        }
-    }
-
-    pub fn validate_price(price: f64) -> Result<()> {
+impl CliValidator {
+    pub fn validate_price(price: f64) -> ErpResult<Decimal> {
         if price < 0.0 {
-            bail!("Price cannot be negative: {}", price)
+            return Err(ErpError::validation("price", "가격은 음수일 수 없습니다"));
         }
+
         if price > 999999999.99 {
-            bail!("Price too large: {}", price)
+            return Err(ErpError::validation(
+                "price",
+                "가격이 너무 큽니다 (최대: 999,999,999.99)",
+            ));
         }
-        Ok(())
+
+        Decimal::from_str(&price.to_string())
+            .map_err(|_| ErpError::validation("price", "올바르지 않은 가격 형식입니다"))
     }
 
-    pub fn validate_quantity(quantity: i32) -> Result<()> {
+    pub fn validate_quantity(quantity: i32) -> ErpResult<i32> {
         if quantity < 0 {
-            bail!("Quantity cannot be negative: {}", quantity)
+            return Err(ErpError::validation(
+                "quantity",
+                "수량은 음수일 수 없습니다",
+            ));
         }
+
         if quantity > 1_000_000 {
-            bail!("Quantity too large: {}", quantity)
+            return Err(ErpError::validation(
+                "quantity",
+                "수량이 너무 큽니다 (최대: 1,000,000)",
+            ));
         }
-        Ok(())
+
+        Ok(quantity)
     }
 
-    pub fn validate_uuid(uuid_str: &str) -> Result<uuid::Uuid> {
-        match uuid::Uuid::from_str(uuid_str) {
-            Ok(uuid) => Ok(uuid),
-            Err(_) => bail!("Invalid UUID format: {}", uuid_str),
-        }
-    }
-
-    pub fn validate_username(username: &str) -> Result<()> {
-        if username.len() < 3 {
-            bail!("Username must be at least 3 characters long");
-        }
-        if username.len() > 50 {
-            bail!("Username cannot exceed 50 characters");
-        }
-
-        let username_regex = Regex::new(r"^[a-zA-Z0-9_-]+$")?;
-        if !username_regex.is_match(username) {
-            bail!("Username can only contain letters, numbers, underscores, and hyphens");
-        }
-
-        Ok(())
-    }
-
-    pub fn validate_product_name(name: &str) -> Result<()> {
+    pub fn validate_product_name(name: &str) -> ErpResult<String> {
         if name.trim().is_empty() {
-            bail!("Product name cannot be empty");
+            return Err(ErpError::validation(
+                "name",
+                "제품명은 비어있을 수 없습니다",
+            ));
         }
+
         if name.len() > 255 {
-            bail!("Product name cannot exceed 255 characters");
+            return Err(ErpError::validation(
+                "name",
+                "제품명이 너무 깁니다 (최대: 255자)",
+            ));
         }
-        Ok(())
+
+        Ok(name.trim().to_string())
     }
 
-    pub fn validate_customer_name(name: &str) -> Result<()> {
-        if name.trim().is_empty() {
-            bail!("Customer name cannot be empty");
-        }
-        if name.len() > 255 {
-            bail!("Customer name cannot exceed 255 characters");
-        }
-        Ok(())
-    }
-
-    pub fn validate_category(category: &str) -> Result<()> {
-        if category.trim().is_empty() {
-            bail!("Category cannot be empty");
-        }
-        if category.len() > 100 {
-            bail!("Category cannot exceed 100 characters");
-        }
-        Ok(())
-    }
-
-    pub fn validate_sku(sku: &str) -> Result<()> {
+    pub fn validate_sku(sku: &str) -> ErpResult<String> {
         if sku.trim().is_empty() {
-            bail!("SKU cannot be empty");
-        }
-        if sku.len() > 100 {
-            bail!("SKU cannot exceed 100 characters");
+            return Err(ErpError::validation("sku", "SKU는 비어있을 수 없습니다"));
         }
 
-        let sku_regex = Regex::new(r"^[A-Z0-9\-_]+$")?;
-        if !sku_regex.is_match(sku) {
-            bail!("SKU can only contain uppercase letters, numbers, hyphens, and underscores");
+        if sku.len() > 50 {
+            return Err(ErpError::validation(
+                "sku",
+                "SKU가 너무 깁니다 (최대: 50자)",
+            ));
         }
 
-        Ok(())
+        // SKU는 영문, 숫자, 하이픈, 언더스코어만 허용
+        if !sku
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
+        {
+            return Err(ErpError::validation(
+                "sku",
+                "SKU는 영문, 숫자, 하이픈(-), 언더스코어(_)만 허용됩니다",
+            ));
+        }
+
+        Ok(sku.trim().to_uppercase())
     }
 
-    pub fn validate_order_status(status: &str) -> Result<()> {
-        match status.to_lowercase().as_str() {
-            "pending" | "processing" | "shipped" | "delivered" | "cancelled" => Ok(()),
-            _ => bail!("Invalid order status. Valid statuses: pending, processing, shipped, delivered, cancelled"),
+    pub fn validate_category(category: &str) -> ErpResult<String> {
+        if category.trim().is_empty() {
+            return Err(ErpError::validation(
+                "category",
+                "카테고리는 비어있을 수 없습니다",
+            ));
+        }
+
+        if category.len() > 100 {
+            return Err(ErpError::validation(
+                "category",
+                "카테고리명이 너무 깁니다 (최대: 100자)",
+            ));
+        }
+
+        Ok(category.trim().to_string())
+    }
+
+    pub fn validate_customer_name(name: &str) -> ErpResult<String> {
+        if name.trim().is_empty() {
+            return Err(ErpError::validation(
+                "name",
+                "고객명은 비어있을 수 없습니다",
+            ));
+        }
+
+        if name.len() > 255 {
+            return Err(ErpError::validation(
+                "name",
+                "고객명이 너무 깁니다 (최대: 255자)",
+            ));
+        }
+
+        Ok(name.trim().to_string())
+    }
+
+    pub fn validate_email_optional(email: &Option<String>) -> ErpResult<Option<String>> {
+        match email {
+            Some(email_str) => {
+                if email_str.trim().is_empty() {
+                    Ok(None)
+                } else {
+                    validate_email(email_str)?;
+                    Ok(Some(email_str.trim().to_lowercase()))
+                }
+            }
+            None => Ok(None),
         }
     }
 
-    pub fn validate_user_role(role: &str) -> Result<()> {
-        match role.to_lowercase().as_str() {
-            "admin" | "manager" | "user" | "readonly" => Ok(()),
-            _ => bail!("Invalid user role. Valid roles: admin, manager, user, readonly"),
+    pub fn validate_phone_optional(phone: &Option<String>) -> ErpResult<Option<String>> {
+        match phone {
+            Some(phone_str) => {
+                if phone_str.trim().is_empty() {
+                    return Ok(None);
+                }
+
+                let cleaned = phone_str
+                    .chars()
+                    .filter(|c| {
+                        c.is_ascii_digit()
+                            || *c == '-'
+                            || *c == '+'
+                            || *c == '('
+                            || *c == ')'
+                            || *c == ' '
+                    })
+                    .collect::<String>()
+                    .trim()
+                    .to_string();
+
+                if cleaned.len() < 10 || cleaned.len() > 20 {
+                    return Err(ErpError::validation(
+                        "phone",
+                        "전화번호 길이가 올바르지 않습니다 (10-20자)",
+                    ));
+                }
+
+                Ok(Some(cleaned))
+            }
+            None => Ok(None),
         }
     }
 
-    pub fn validate_output_format(format: &str) -> Result<()> {
-        match format.to_lowercase().as_str() {
-            "table" | "json" | "csv" => Ok(()),
-            _ => bail!("Invalid output format. Valid formats: table, json, csv"),
+    pub fn validate_customer_type_optional(
+        customer_type: &Option<String>,
+    ) -> ErpResult<Option<String>> {
+        match customer_type {
+            Some(type_str) => {
+                let valid_types = ["individual", "business"];
+                let normalized = type_str.trim().to_lowercase();
+
+                if !valid_types.contains(&normalized.as_str()) {
+                    return Err(ErpError::validation(
+                        "customer_type",
+                        "고객 타입은 'individual' 또는 'business'만 허용됩니다",
+                    ));
+                }
+
+                Ok(Some(normalized))
+            }
+            None => Ok(None),
         }
     }
 
-    pub fn validate_report_period(period: &str) -> Result<()> {
-        match period.to_lowercase().as_str() {
-            "daily" | "weekly" | "monthly" | "quarterly" | "yearly" => Ok(()),
-            _ => bail!(
-                "Invalid report period. Valid periods: daily, weekly, monthly, quarterly, yearly"
-            ),
+    pub fn validate_order_status(status: &str) -> ErpResult<String> {
+        let valid_statuses = ["pending", "processing", "shipped", "delivered", "cancelled"];
+        let normalized = status.trim().to_lowercase();
+
+        if !valid_statuses.contains(&normalized.as_str()) {
+            return Err(ErpError::validation("status", "주문 상태는 'pending', 'processing', 'shipped', 'delivered', 'cancelled' 중 하나여야 합니다"));
         }
+
+        Ok(normalized)
     }
 
-    pub fn validate_date_range(date_range: &str) -> Result<(chrono::NaiveDate, chrono::NaiveDate)> {
-        let parts: Vec<&str> = date_range.split(',').collect();
-        if parts.len() != 2 {
-            bail!("Date range must be in format: YYYY-MM-DD,YYYY-MM-DD");
-        }
-
-        let start_date = chrono::NaiveDate::parse_from_str(parts[0].trim(), "%Y-%m-%d")
-            .map_err(|_| anyhow::anyhow!("Invalid start date format: {}", parts[0]))?;
-
-        let end_date = chrono::NaiveDate::parse_from_str(parts[1].trim(), "%Y-%m-%d")
-            .map_err(|_| anyhow::anyhow!("Invalid end date format: {}", parts[1]))?;
-
-        if start_date > end_date {
-            bail!("Start date cannot be after end date");
-        }
-
-        Ok((start_date, end_date))
+    pub fn validate_date_string(date_str: &str) -> ErpResult<NaiveDate> {
+        NaiveDate::parse_from_str(date_str, "%Y-%m-%d").map_err(|_| {
+            ErpError::validation(
+                "date",
+                "날짜 형식이 올바르지 않습니다 (YYYY-MM-DD 형식을 사용해주세요)",
+            )
+        })
     }
 
-    pub fn validate_pagination(page: usize, limit: usize) -> Result<()> {
+    pub fn validate_date_range(
+        from_date: &Option<String>,
+        to_date: &Option<String>,
+    ) -> ErpResult<(Option<NaiveDate>, Option<NaiveDate>)> {
+        let from = match from_date {
+            Some(date_str) => Some(Self::validate_date_string(date_str)?),
+            None => None,
+        };
+
+        let to = match to_date {
+            Some(date_str) => Some(Self::validate_date_string(date_str)?),
+            None => None,
+        };
+
+        if let (Some(from_d), Some(to_d)) = (from, to) {
+            if from_d > to_d {
+                return Err(ErpError::validation(
+                    "date_range",
+                    "시작 날짜가 종료 날짜보다 늦을 수 없습니다",
+                ));
+            }
+
+            if from_d > Utc::now().naive_utc().date() {
+                return Err(ErpError::validation(
+                    "date_range",
+                    "시작 날짜가 미래일 수 없습니다",
+                ));
+            }
+        }
+
+        Ok((from, to))
+    }
+
+    pub fn validate_discount_percentage(discount: f64) -> ErpResult<f64> {
+        if discount < 0.0 || discount > 100.0 {
+            return Err(ErpError::validation(
+                "discount",
+                "할인율은 0-100% 범위여야 합니다",
+            ));
+        }
+
+        Ok(discount)
+    }
+
+    pub fn validate_report_format(format: &str) -> ErpResult<String> {
+        let valid_formats = ["table", "csv", "json", "pdf", "html"];
+        let normalized = format.trim().to_lowercase();
+
+        if !valid_formats.contains(&normalized.as_str()) {
+            return Err(ErpError::validation(
+                "format",
+                "출력 형식은 'table', 'csv', 'json', 'pdf', 'html' 중 하나여야 합니다",
+            ));
+        }
+
+        Ok(normalized)
+    }
+
+    pub fn validate_report_period(period: &str) -> ErpResult<String> {
+        let valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+        let normalized = period.trim().to_lowercase();
+
+        if !valid_periods.contains(&normalized.as_str()) {
+            return Err(ErpError::validation(
+                "period",
+                "기간은 'daily', 'weekly', 'monthly', 'quarterly', 'yearly' 중 하나여야 합니다",
+            ));
+        }
+
+        Ok(normalized)
+    }
+
+    pub fn validate_pagination(page: u32, limit: u32) -> ErpResult<(u32, u32)> {
         if page == 0 {
-            bail!("Page number must be greater than 0");
+            return Err(ErpError::validation(
+                "page",
+                "페이지 번호는 1 이상이어야 합니다",
+            ));
         }
-        if limit == 0 {
-            bail!("Limit must be greater than 0");
+
+        if limit == 0 || limit > 1000 {
+            return Err(ErpError::validation(
+                "limit",
+                "페이지당 아이템 수는 1-1000 범위여야 합니다",
+            ));
         }
-        if limit > 1000 {
-            bail!("Limit cannot exceed 1000");
+
+        Ok((page, limit))
+    }
+
+    pub fn validate_order_items(items: &[String]) -> ErpResult<Vec<(String, i32)>> {
+        if items.is_empty() {
+            return Err(ErpError::validation(
+                "items",
+                "최소 하나의 주문 아이템이 필요합니다",
+            ));
         }
-        Ok(())
-    }
-}
 
-#[cfg(test)]
-mod tests {
-    use super::*;
+        let mut validated_items = Vec::new();
 
-    #[test]
-    fn test_validate_email() {
-        assert!(InputValidator::validate_email("test@example.com").is_ok());
-        assert!(InputValidator::validate_email("invalid-email").is_err());
-    }
+        for item_str in items {
+            let parts: Vec<&str> = item_str.split(':').collect();
+            if parts.len() != 2 {
+                return Err(ErpError::validation(
+                    "items",
+                    "아이템 형식이 올바르지 않습니다 (product_id:quantity)",
+                ));
+            }
 
-    #[test]
-    fn test_validate_phone() {
-        assert!(InputValidator::validate_phone("123-456-7890").is_ok());
-        assert!(InputValidator::validate_phone("invalid").is_err());
-    }
+            let product_id = parts[0].trim();
+            if product_id.is_empty() {
+                return Err(ErpError::validation(
+                    "product_id",
+                    "제품 ID는 비어있을 수 없습니다",
+                ));
+            }
 
-    #[test]
-    fn test_validate_price() {
-        assert!(InputValidator::validate_price(19.99).is_ok());
-        assert!(InputValidator::validate_price(-1.0).is_err());
-    }
+            let quantity = parts[1]
+                .trim()
+                .parse::<i32>()
+                .map_err(|_| ErpError::validation("quantity", "수량은 유효한 정수여야 합니다"))?;
 
-    #[test]
-    fn test_validate_quantity() {
-        assert!(InputValidator::validate_quantity(100).is_ok());
-        assert!(InputValidator::validate_quantity(-1).is_err());
-    }
+            Self::validate_quantity(quantity)?;
 
-    #[test]
-    fn test_validate_username() {
-        assert!(InputValidator::validate_username("user123").is_ok());
-        assert!(InputValidator::validate_username("ab").is_err()); // too short
+            validated_items.push((product_id.to_string(), quantity));
+        }
+
+        Ok(validated_items)
     }
 
-    #[test]
-    fn test_validate_order_status() {
-        assert!(InputValidator::validate_order_status("pending").is_ok());
-        assert!(InputValidator::validate_order_status("invalid").is_err());
+    pub fn validate_search_field(field: &str) -> ErpResult<String> {
+        let valid_fields = ["name", "email", "phone", "all"];
+        let normalized = field.trim().to_lowercase();
+
+        if !valid_fields.contains(&normalized.as_str()) {
+            return Err(ErpError::validation(
+                "field",
+                "검색 필드는 'name', 'email', 'phone', 'all' 중 하나여야 합니다",
+            ));
+        }
+
+        Ok(normalized)
+    }
+
+    pub fn validate_id_or_sku(id: &str) -> ErpResult<String> {
+        let cleaned = id.trim();
+        if cleaned.is_empty() {
+            return Err(ErpError::validation(
+                "id",
+                "ID 또는 SKU는 비어있을 수 없습니다",
+            ));
+        }
+
+        // For Phase 3, just return the cleaned ID without complex validation
+        // UUID and SKU validation will be implemented in Phase 4
+        Ok(cleaned.to_string())
     }
 }

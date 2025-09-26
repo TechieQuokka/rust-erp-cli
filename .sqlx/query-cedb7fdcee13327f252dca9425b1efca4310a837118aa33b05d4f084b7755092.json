@@ -1,0 +1,50 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.id, c.name, c.email,\n                    COUNT(so.id) as total_orders,\n                    COALESCE(SUM(so.total_amount), 0) as total_spent,\n                    MAX(so.created_at) as last_order_date\n             FROM customers c\n             LEFT JOIN sales_orders so ON c.id = so.customer_id\n             WHERE DATE(so.created_at) >= $1\n             GROUP BY c.id, c.name, c.email\n             ORDER BY total_spent DESC\n             LIMIT $2",
+  "describe": {
+    "columns": [
+      {
+        "name": "id",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "name",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "email",
+        "ordinal": 2,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_orders",
+        "ordinal": 3,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_spent",
+        "ordinal": 4,
+        "type_info": "Float"
+      },
+      {
+        "name": "last_order_date",
+        "ordinal": 5,
+        "type_info": "Datetime"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      true,
+      true,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "cedb7fdcee13327f252dca9425b1efca4310a837118aa33b05d4f084b7755092"
+}

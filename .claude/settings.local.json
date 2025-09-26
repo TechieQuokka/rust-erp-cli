@@ -1,9 +1,17 @@
 {
   "permissions": {
     "allow": [
-      "Bash(del temp_*.json)",
-      "Bash(del nul)",
-      "Bash(del .mcp.json)"
+      "Bash(find:*)",
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(cargo check:*)",
+      "Bash(cargo fmt:*)",
+      "Bash(cargo clippy:*)",
+      "Bash(cargo:*)",
+      "Bash(sqlx database create:*)",
+      "Bash(SQLX_OFFLINE=true cargo check)",
+      "Bash(gh repo create:*)",
+      "Bash(git remote add:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []

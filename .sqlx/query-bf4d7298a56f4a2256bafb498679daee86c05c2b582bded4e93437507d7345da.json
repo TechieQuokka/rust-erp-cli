@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DATE(created_at) as date,\n                    COUNT(*) as order_count,\n                    COALESCE(SUM(total_amount), 0) as total_amount\n             FROM sales_orders\n             WHERE DATE(created_at) BETWEEN $1 AND $2\n             GROUP BY DATE(created_at)\n             ORDER BY date",
+  "describe": {
+    "columns": [
+      {
+        "name": "date",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "order_count",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_amount",
+        "ordinal": 2,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false
+    ]
+  },
+  "hash": "bf4d7298a56f4a2256bafb498679daee86c05c2b582bded4e93437507d7345da"
+}

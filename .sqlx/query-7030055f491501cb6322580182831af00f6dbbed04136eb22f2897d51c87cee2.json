@@ -1,0 +1,32 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT status, COUNT(*) as order_count, COALESCE(SUM(total_amount), 0) as total_amount\n             FROM sales_orders\n             WHERE DATE(created_at) BETWEEN $1 AND $2\n             GROUP BY status\n             ORDER BY order_count DESC",
+  "describe": {
+    "columns": [
+      {
+        "name": "status",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "order_count",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_amount",
+        "ordinal": 2,
+        "type_info": "Float"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "7030055f491501cb6322580182831af00f6dbbed04136eb22f2897d51c87cee2"
+}

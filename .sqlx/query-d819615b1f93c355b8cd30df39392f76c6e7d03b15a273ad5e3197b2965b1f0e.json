@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT c.customer_type as segment_name,\n                    COUNT(DISTINCT c.id) as customer_count,\n                    COALESCE(SUM(so.total_amount), 0) as total_revenue,\n                    COALESCE(AVG(order_frequency.freq), 0) as avg_frequency\n             FROM customers c\n             LEFT JOIN sales_orders so ON c.id = so.customer_id AND DATE(so.created_at) >= $1\n             LEFT JOIN (\n                 SELECT customer_id, COUNT(*) as freq\n                 FROM sales_orders\n                 WHERE DATE(created_at) >= $1\n                 GROUP BY customer_id\n             ) order_frequency ON c.id = order_frequency.customer_id\n             GROUP BY c.customer_type",
+  "describe": {
+    "columns": [
+      {
+        "name": "segment_name",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "customer_count",
+        "ordinal": 1,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_revenue",
+        "ordinal": 2,
+        "type_info": "Int"
+      },
+      {
+        "name": "avg_frequency",
+        "ordinal": 3,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "d819615b1f93c355b8cd30df39392f76c6e7d03b15a273ad5e3197b2965b1f0e"
+}

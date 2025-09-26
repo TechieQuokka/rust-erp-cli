@@ -1,0 +1,38 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT DATE(so.created_at) as date,\n                    'Out' as movement_type,\n                    -SUM(soi.quantity) as total_quantity,\n                    -SUM(soi.quantity * soi.unit_price) as total_value\n             FROM sales_orders so\n             JOIN sales_order_items soi ON so.id = soi.order_id\n             WHERE DATE(so.created_at) BETWEEN $1 AND $2\n             GROUP BY DATE(so.created_at)\n             ORDER BY date",
+  "describe": {
+    "columns": [
+      {
+        "name": "date",
+        "ordinal": 0,
+        "type_info": "Text"
+      },
+      {
+        "name": "movement_type",
+        "ordinal": 1,
+        "type_info": "Text"
+      },
+      {
+        "name": "total_quantity",
+        "ordinal": 2,
+        "type_info": "Int64"
+      },
+      {
+        "name": "total_value",
+        "ordinal": 3,
+        "type_info": "Int64"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      true,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "dd8f8a34f48d713fb9c9202c1fc7eafb434fe16490d4ee7103dfdfc7ba9606a8"
+}

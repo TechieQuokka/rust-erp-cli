@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(DISTINCT customer_id) as count\n             FROM sales_orders\n             WHERE DATE(created_at) >= $1\n             AND customer_id IN (\n                 SELECT customer_id FROM sales_orders WHERE DATE(created_at) < $1\n             )",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 1
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "5274c9e4a0ef5f6822664f9e76b0a4df3cd55ea86ba7e82fee1f1b15e9b57a99"
+}

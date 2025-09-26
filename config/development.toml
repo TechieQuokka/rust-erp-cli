@@ -1,0 +1,70 @@
+[database]
+url = "sqlite://dev.db"
+max_connections = 5
+migrate_on_start = true
+query_timeout_seconds = 10
+
+[logging]
+level = "debug"
+format = "pretty"
+file = "logs/dev.log"
+# 개발 환경에서는 콘솔에도 출력
+console_output = true
+
+[auth]
+jwt_secret = "4b3d7a5f827a51459b93ba7a25c34817404d7fcdc5db9b4a27319c57ff23521b"
+token_expiry_hours = 48
+# 개발 중 편의를 위해 더 관대한 설정
+password_min_length = 4
+max_login_attempts = 10
+
+[cache]
+# 개발 환경에서는 Redis 없이도 동작
+redis_url = ""
+default_ttl_seconds = 300
+enable_cache = false
+
+[api]
+host = "127.0.0.1"
+port = 8080
+cors_enabled = true
+# 개발 중 디버깅을 위한 더 긴 타임아웃
+request_timeout_seconds = 60
+
+[reports]
+output_dir = "dev_reports"
+default_format = "json"
+# 개발 중에는 적은 수의 레코드로 테스트
+max_records_per_report = 100
+
+[inventory]
+low_stock_threshold = 5
+auto_reorder_enabled = false
+default_currency = "KRW"
+
+[sales]
+invoice_prefix = "DEV-INV"
+order_prefix = "DEV-ORD"
+default_tax_rate = 0.1
+payment_terms_days = 7
+
+[security]
+enable_audit_log = false
+audit_retention_days = 30
+encrypt_sensitive_data = false
+# 개발 중에는 비밀번호 변경 요구하지 않음
+require_password_change_days = 0
+
+[performance]
+connection_pool_size = 5
+query_cache_size = 100
+batch_size = 50
+timeout_seconds = 10
+
+# 개발 전용 설정
+[dev]
+auto_reload = true
+debug_queries = true
+mock_external_services = true
+seed_test_data = true
+enable_dev_endpoints = true

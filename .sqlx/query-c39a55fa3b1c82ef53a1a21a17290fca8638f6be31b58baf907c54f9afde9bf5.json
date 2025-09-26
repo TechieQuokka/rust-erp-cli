@@ -1,0 +1,20 @@
+{
+  "db_name": "SQLite",
+  "query": "SELECT COUNT(*) as count FROM sales_orders WHERE DATE(created_at) BETWEEN $1 AND $2",
+  "describe": {
+    "columns": [
+      {
+        "name": "count",
+        "ordinal": 0,
+        "type_info": "Int"
+      }
+    ],
+    "parameters": {
+      "Right": 2
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "c39a55fa3b1c82ef53a1a21a17290fca8638f6be31b58baf907c54f9afde9bf5"
+}
