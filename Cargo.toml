@@ -57,6 +57,9 @@ jsonwebtoken = "9.0"
 rand = "0.8"
 sha2 = "0.10"
 hex = "0.4"
+aes-gcm = "0.10"
+argon2 = "0.5"
+base64 = "0.21"
 
 # 정규식
 regex = "1.0"
@@ -75,14 +78,20 @@ comfy-table = "7.0"
 # 환경변수 관리
 dotenvy = "0.15"
 
+# 시스템 모니터링
+sysinfo = "0.29"
+tar = "0.4"
+
 [dev-dependencies]
 # 테스트
 tempfile = "3.0"
 mockall = "0.11"
 rstest = "0.18"
+assert_cmd = "2.0"
+predicates = "3.0"
 
 # 테스트 도구
-cargo-nextest = "0.9"
+# cargo-nextest = "0.9"  # Commented out due to compilation issues
 cargo-tarpaulin = "0.27"
 
 [profile.dev]

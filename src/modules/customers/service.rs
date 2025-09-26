@@ -605,22 +605,22 @@ mod tests {
 
     fn create_test_customer_request() -> CreateCustomerRequest {
         CreateCustomerRequest {
-            first_name: "John",
-            last_name: "Doe",
+            first_name: "John".to_string(),
+            last_name: "Doe".to_string(),
             company_name: None,
-            email: "john.doe@example.com",
-            phone: Some("+1234567890"),
+            email: "john.doe@example.com".to_string(),
+            phone: Some("+1234567890".to_string()),
             customer_type: CustomerType::Individual,
             credit_limit: Some(Decimal::from(5000)),
             tax_id: None,
-            notes: Some("Test customer"),
+            notes: Some("Test customer".to_string()),
             addresses: vec![CreateAddressRequest {
                 address_type: AddressType::Both,
-                street_address: "123 Main St",
-                city: "Springfield",
-                state_province: "IL",
-                postal_code: "62701",
-                country: "USA",
+                street_address: "123 Main St".to_string(),
+                city: "Springfield".to_string(),
+                state_province: "IL".to_string(),
+                postal_code: "62701".to_string(),
+                country: "USA".to_string(),
                 is_default: true,
             }],
         }
@@ -654,7 +654,7 @@ mod tests {
         let result = service.create_customer(request).await;
 
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), ErpError::Validation(_)));
+        assert!(matches!(result.unwrap_err(), ErpError::Validation { .. }));
     }
 
     #[tokio::test]
@@ -663,13 +663,13 @@ mod tests {
 
         // Test empty first name
         let mut request = create_test_customer_request();
-        request.first_name = "";
+        request.first_name = "".to_string();
         let result = service.create_customer(request).await;
         assert!(result.is_err());
 
         // Test invalid email
         let mut request = create_test_customer_request();
-        request.email = "invalid-email";
+        request.email = "invalid-email".to_string();
         let result = service.create_customer(request).await;
         assert!(result.is_err());
 
@@ -725,16 +725,16 @@ mod tests {
 
         // Update customer
         let update_request = UpdateCustomerRequest {
-            first_name: Some("Jane"),
-            last_name: Some("Smith"),
-            company_name: Some("Acme Corp"),
-            email: Some("jane.smith@acme.com"),
+            first_name: Some("Jane".to_string()),
+            last_name: Some("Smith".to_string()),
+            company_name: Some("Acme Corp".to_string()),
+            email: Some("jane.smith@acme.com".to_string()),
             phone: None,
             customer_type: Some(CustomerType::Business),
             status: Some(CustomerStatus::Active),
             credit_limit: Some(Decimal::from(10000)),
-            tax_id: Some("123456789"),
-            notes: Some("Updated customer"),
+            tax_id: Some("123456789".to_string()),
+            notes: Some("Updated customer".to_string()),
         };
 
         let result = service.update_customer(created.id, update_request).await;
@@ -772,13 +772,13 @@ mod tests {
 
         // Create test customers
         let mut request1 = create_test_customer_request();
-        request1.email = "john.doe@example.com";
-        request1.first_name = "John";
+        request1.email = "john.doe@example.com".to_string();
+        request1.first_name = "John".to_string();
 
         let mut request2 = create_test_customer_request();
-        request2.email = "jane.smith@example.com";
-        request2.first_name = "Jane";
-        request2.last_name = "Smith";
+        request2.email = "jane.smith@example.com".to_string();
+        request2.first_name = "Jane".to_string();
+        request2.last_name = "Smith".to_string();
 
         service.create_customer(request1).await.unwrap();
         service.create_customer(request2).await.unwrap();

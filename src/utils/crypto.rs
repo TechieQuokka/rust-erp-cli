@@ -268,4 +268,117 @@ mod tests {
         assert!(validate_checksum(data, &checksum).is_ok());
         assert!(validate_checksum(data, "wrong_checksum").is_err());
     }
+
+    #[test]
+    fn test_hashed_password() {
+        let password = "test123";
+        let hashed = hash_password(password, None).unwrap();
+
+        assert!(hashed.verify(password).unwrap());
+        assert!(!hashed.verify("wrong").unwrap());
+
+        let hash_str = hashed.to_string();
+        assert!(!hash_str.is_empty());
+
+        let from_string = HashedPassword::from(hash_str.clone());
+        assert_eq!(from_string.as_str(), hash_str);
+    }
+
+    #[test]
+    fn test_generate_salt() {
+        let salt1 = generate_salt();
+        let salt2 = generate_salt();
+
+        assert_ne!(salt1, salt2);
+        assert_eq!(salt1.len(), 32);
+    }
+
+    #[test]
+    fn test_hash_string() {
+        let data = "test string";
+        let hash1 = hash_string(data);
+        let hash2 = hash_string(data);
+
+        assert_eq!(hash1, hash2);
+        assert_ne!(hash1, hash_string("different string"));
+    }
+
+    #[test]
+    fn test_generate_secure_id() {
+        let id1 = generate_secure_id();
+        let id2 = generate_secure_id();
+
+        assert_ne!(id1, id2);
+        assert_eq!(id1.len(), 32); // 16 bytes = 32 hex chars
+        assert_eq!(id2.len(), 32);
+    }
+
+    #[test]
+    fn test_api_key_from_hash() {
+        let api_key = ApiKey::generate();
+        let hash = api_key.hash().to_string();
+
+        let api_key_from_hash = ApiKey::from_hash(hash.clone());
+        assert_eq!(api_key_from_hash.hash(), hash);
+        assert_eq!(api_key_from_hash.key(), ""); // Key should be empty
+    }
+
+    #[test]
+    fn test_hash_config() {
+        let config = HashConfig { bcrypt_cost: 6 };
+        let password = "testpass";
+
+        let hashed = hash_password(password, Some(&config)).unwrap();
+        assert!(hashed.verify(password).unwrap());
+    }
+
+    #[test]
+    fn test_hashing_service() {
+        let service = HashingService::new();
+        let password = "service_test_password";
+
+        let hashed_pass = service.hash_password(password).unwrap();
+        assert!(service
+            .verify_password(password, hashed_pass.as_str())
+            .unwrap());
+        assert!(!service
+            .verify_password("wrong", hashed_pass.as_str())
+            .unwrap());
+
+        let salt = service.generate_salt();
+        assert_eq!(salt.len(), 32);
+
+        let hash = service.hash_string("test data");
+        assert!(!hash.is_empty());
+
+        let data_hash = service.hash_data(b"binary data");
+        assert_eq!(data_hash, hash_data(b"binary data"));
+    }
+
+    #[test]
+    fn test_hashing_service_with_config() {
+        let config = HashConfig { bcrypt_cost: 4 };
+        let service = HashingService::with_config(config);
+
+        let password = "config_test";
+        let hashed = service.hash_password(password).unwrap();
+        assert!(service.verify_password(password, hashed.as_str()).unwrap());
+    }
+
+    #[test]
+    fn test_edge_cases() {
+        // Test empty string
+        let empty_hash = hash_string("");
+        assert!(!empty_hash.is_empty());
+
+        // Test mask with zero visible chars
+        assert_eq!(mask_sensitive_data("secret", 0), "******");
+
+        // Test secure compare with empty strings
+        assert!(secure_compare("", ""));
+
+        // Test API key verification with empty key
+        let api_key = ApiKey::from_hash("some_hash".to_string());
+        assert!(!api_key.verify("any_key"));
+    }
 }

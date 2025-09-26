@@ -580,7 +580,7 @@ impl std::fmt::Display for ShippingStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::core::database::models::product::{CreateProductRequest, Product, ProductStatus};
+    use crate::core::database::models::product::{CreateProductRequest, Product};
 
     #[test]
     fn test_order_creation() {

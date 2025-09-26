@@ -363,7 +363,7 @@ mod tests {
 
     #[test]
     fn test_user_full_name() {
-        let mut user = User {
+        let user = User {
             id: Uuid::new_v4(),
             username: "test".to_string(),
             email: "test@example.com".to_string(),

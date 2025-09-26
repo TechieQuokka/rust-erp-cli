@@ -604,10 +604,7 @@ mod tests {
 
         let result = service.create_product(request, user_id).await;
         assert!(result.is_err());
-        assert!(matches!(
-            result.unwrap_err(),
-            ErpError::validation_simple(_)
-        ));
+        assert!(matches!(result.unwrap_err(), ErpError::Validation { .. }));
     }
 
     #[tokio::test]

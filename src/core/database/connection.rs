@@ -15,8 +15,8 @@ static DB_POOL: OnceCell<Arc<DatabaseConnection>> = OnceCell::const_new();
 #[derive(Clone)]
 pub struct DatabaseConnection {
     pool: Pool<Postgres>,
-    config: DatabaseConfig,
-    logger: DatabaseLogger,
+    _config: DatabaseConfig,
+    _logger: DatabaseLogger,
 }
 
 impl DatabaseConnection {
@@ -28,8 +28,8 @@ impl DatabaseConnection {
 
         let connection = Self {
             pool,
-            config,
-            logger,
+            _config: config,
+            _logger: logger,
         };
 
         if migrate_on_start {

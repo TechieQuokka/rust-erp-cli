@@ -7,6 +7,7 @@ use crate::utils::error::{ErpError, ErpResult};
 use crate::utils::validation::ValidationService;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use std::any::Any;
 use std::sync::Arc;
 use tracing::{info, warn};
 use uuid::Uuid;
@@ -88,7 +89,7 @@ impl Default for AuthConfig {
 }
 
 #[async_trait::async_trait]
-pub trait UserRepository: Send + Sync {
+pub trait UserRepository: Send + Sync + Any {
     async fn find_by_username(&self, username: &str) -> ErpResult<Option<User>>;
     async fn find_by_email(&self, email: &str) -> ErpResult<Option<User>>;
     async fn find_by_id(&self, id: Uuid) -> ErpResult<Option<User>>;
@@ -104,7 +105,7 @@ pub struct AuthService {
     rbac_service: RbacService,
     hashing_service: HashingService,
     validation_service: ValidationService,
-    config: AuthConfig,
+    _config: AuthConfig,
 }
 
 impl AuthService {
@@ -122,7 +123,7 @@ impl AuthService {
             rbac_service,
             hashing_service,
             validation_service,
-            config,
+            _config: config,
         }
     }
 
@@ -642,10 +643,9 @@ mod tests {
         user.status = UserStatus::Active; // Activate the user
 
         // Add user to mock repository
-        if let Some(mock_repo) = auth_service.user_repository.as_ref() as &dyn std::any::Any {
-            if let Some(mock_repo) = mock_repo.downcast_ref::<MockUserRepository>() {
-                mock_repo.add_user(user);
-            }
+        let any_repo: &dyn std::any::Any = auth_service.user_repository.as_ref();
+        if let Some(mock_repo) = any_repo.downcast_ref::<MockUserRepository>() {
+            mock_repo.add_user(user);
         }
 
         // Test login
@@ -711,10 +711,9 @@ mod tests {
         user.status = UserStatus::Active;
 
         // Add user to repository
-        if let Some(mock_repo) = auth_service.user_repository.as_ref() as &dyn std::any::Any {
-            if let Some(mock_repo) = mock_repo.downcast_ref::<MockUserRepository>() {
-                mock_repo.add_user(user);
-            }
+        let any_repo: &dyn std::any::Any = auth_service.user_repository.as_ref();
+        if let Some(mock_repo) = any_repo.downcast_ref::<MockUserRepository>() {
+            mock_repo.add_user(user);
         }
 
         // Test permission checks

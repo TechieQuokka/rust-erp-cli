@@ -809,7 +809,6 @@ pub struct InventoryTurnoverItem {
 mod tests {
     use super::*;
     use crate::modules::reports::repository::MockReportsRepository;
-    use chrono::NaiveDate;
 
     #[tokio::test]
     async fn test_generate_sales_summary() {
@@ -880,9 +879,9 @@ mod tests {
         let result = service.generate_customer_analysis(0, &request).await;
         assert!(result.is_err());
 
-        if let Err(ErpError::Validation { field, message }) = result {
+        if let Err(ErpError::Validation { field, reason }) = result {
             assert_eq!(field, "months");
-            assert!(message.contains("1-120개월"));
+            assert!(reason.contains("1-120개월"));
         }
     }
 }

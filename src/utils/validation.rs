@@ -442,4 +442,126 @@ mod tests {
         assert!(validate_price(Decimal::new(-100, 2)).is_err()); // -1.00
         assert!(validate_price(Decimal::new(1999, 3)).is_err()); // Too many decimals
     }
+
+    #[test]
+    fn test_validate_quantity() {
+        assert!(validate_quantity(0).is_ok());
+        assert!(validate_quantity(100).is_ok());
+        assert!(validate_quantity(1_000_000).is_ok());
+
+        assert!(validate_quantity(-1).is_err());
+        assert!(validate_quantity(1_000_001).is_err());
+    }
+
+    #[test]
+    fn test_validate_name() {
+        let config = ValidationConfig::default();
+
+        assert!(validate_name("Valid Name", "name", &config).is_ok());
+        assert!(validate_name("John Doe", "name", &config).is_ok());
+
+        assert!(validate_name("", "name", &config).is_err());
+        assert!(validate_name("   ", "name", &config).is_err());
+        assert!(validate_name(&"a".repeat(101), "name", &config).is_err());
+    }
+
+    #[test]
+    fn test_validate_description() {
+        let config = ValidationConfig::default();
+
+        assert!(validate_description("Valid description", &config).is_ok());
+        assert!(validate_description("", &config).is_ok()); // Empty is allowed
+
+        assert!(validate_description(&"a".repeat(1001), &config).is_err());
+    }
+
+    #[test]
+    fn test_validate_uuid() {
+        let valid_uuid = "550e8400-e29b-41d4-a716-446655440000";
+        let invalid_uuid = "invalid-uuid";
+
+        assert!(validate_uuid(valid_uuid, "id").is_ok());
+        assert!(validate_uuid(invalid_uuid, "id").is_err());
+    }
+
+    #[test]
+    fn test_validate_config_key() {
+        assert!(validate_config_key("valid_key").is_ok());
+        assert!(validate_config_key("config.setting").is_ok());
+        assert!(validate_config_key("app-setting").is_ok());
+
+        assert!(validate_config_key("").is_err());
+        assert!(validate_config_key("1invalid").is_err()); // Starts with number
+        assert!(validate_config_key("invalid@key").is_err()); // Invalid character
+        assert!(validate_config_key(&"a".repeat(101)).is_err()); // Too long
+    }
+
+    #[test]
+    fn test_validate_enum_value() {
+        let allowed_values = ["active", "inactive", "pending"];
+
+        assert!(validate_enum_value("active", &allowed_values, "status").is_ok());
+        assert!(validate_enum_value("invalid", &allowed_values, "status").is_err());
+    }
+
+    #[test]
+    fn test_validate_unique_values() {
+        let unique_values = vec![1, 2, 3, 4];
+        let duplicate_values = vec![1, 2, 2, 3];
+
+        assert!(validate_unique_values(&unique_values, "list").is_ok());
+        assert!(validate_unique_values(&duplicate_values, "list").is_err());
+    }
+
+    #[test]
+    fn test_validate_string_length() {
+        assert!(validate_string_length("hello", "field", Some(3), Some(10)).is_ok());
+        assert!(validate_string_length("hi", "field", Some(3), None).is_err()); // Too short
+        assert!(validate_string_length("very long text", "field", None, Some(10)).is_err());
+        // Too long
+    }
+
+    #[test]
+    fn test_validate_required_field() {
+        let some_value = Some("value");
+        let none_value: Option<String> = None;
+
+        assert!(validate_required_field(&some_value, "field").is_ok());
+        assert!(validate_required_field(&none_value, "field").is_err());
+    }
+
+    #[test]
+    fn test_sanitize_input() {
+        assert_eq!(sanitize_input("  hello world  "), "hello world");
+        assert_eq!(sanitize_input("hello\nworld\t"), "hello\nworld\t"); // Whitespace preserved
+        assert_eq!(sanitize_input("hello\x00world"), "helloworld"); // Control character removed
+    }
+
+    #[test]
+    fn test_is_valid_config_key() {
+        assert!(is_valid_config_key("valid_key"));
+        assert!(is_valid_config_key("config.setting"));
+        assert!(!is_valid_config_key(""));
+        assert!(!is_valid_config_key("1invalid"));
+    }
+
+    #[test]
+    fn test_validation_service() {
+        let service = ValidationService::new();
+
+        assert!(service.validate_email("test@example.com").is_ok());
+        assert!(service.validate_password("Password123!").is_ok());
+        assert!(service.validate_sku("PROD-001").is_ok());
+        assert!(service.validate_quantity(100).is_ok());
+
+        let custom_config = ValidationConfig {
+            min_password_length: 6,
+            require_password_special_chars: false,
+            ..Default::default()
+        };
+        let custom_service = ValidationService::with_config(custom_config);
+
+        assert!(custom_service.validate_password("Pass123").is_ok());
+        assert_eq!(custom_service.sanitize_input("  hello  "), "hello");
+    }
 }

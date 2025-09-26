@@ -5,6 +5,8 @@ pub mod auth;
 pub mod config;
 pub mod database;
 pub mod logging;
+pub mod ops;
+pub mod security;
 
 pub use auth::{AuthService, LoginRequest};
 pub use config::{AppConfig, AuthConfig, DatabaseConfig, LoggingConfig};

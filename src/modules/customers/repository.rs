@@ -36,12 +36,12 @@ pub trait CustomerRepository: Send + Sync {
 }
 
 pub struct PostgresCustomerRepository {
-    pool: Arc<Pool<Postgres>>,
+    _pool: Arc<Pool<Postgres>>,
 }
 
 impl PostgresCustomerRepository {
     pub fn new(pool: Arc<Pool<Postgres>>) -> Self {
-        Self { pool }
+        Self { _pool: pool }
     }
 }
 

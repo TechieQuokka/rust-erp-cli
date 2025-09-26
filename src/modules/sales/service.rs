@@ -11,7 +11,7 @@ use crate::utils::validation::ValidationService;
 
 pub struct SalesService {
     repository: Box<dyn SalesRepository>,
-    validation_service: ValidationService,
+    _validation_service: ValidationService,
     customer_service: Option<CustomerService>,
     inventory_service: Option<Box<dyn InventoryService>>,
 }
@@ -23,7 +23,7 @@ impl SalesService {
     ) -> Self {
         Self {
             repository,
-            validation_service,
+            _validation_service: validation_service,
             customer_service: None,
             inventory_service: None,
         }
