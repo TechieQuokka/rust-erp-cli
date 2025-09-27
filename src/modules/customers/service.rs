@@ -447,8 +447,23 @@ impl CustomerService {
             return Err(ErpError::validation_simple("First name is required"));
         }
 
+        // Allow empty last name for Asian naming conventions (Korean, Japanese, Chinese, etc.)
+        // The CLI layer handles the logic to put full Asian names in first_name and empty last_name
         if request.last_name.trim().is_empty() {
-            return Err(ErpError::validation_simple("Last name is required"));
+            // Check if first_name contains non-ASCII characters (likely Asian name)
+            let has_non_ascii = request.first_name.chars().any(|c| {
+                (c >= '\u{AC00}' && c <= '\u{D7AF}') || // Korean Hangul
+                (c >= '\u{3040}' && c <= '\u{309F}') || // Japanese Hiragana
+                (c >= '\u{30A0}' && c <= '\u{30FF}') || // Japanese Katakana
+                (c >= '\u{4E00}' && c <= '\u{9FAF}') || // CJK Unified Ideographs
+                (!c.is_ascii() && c.is_alphabetic()) // Other non-ASCII alphabetic characters
+            });
+
+            if !has_non_ascii {
+                return Err(ErpError::validation_simple(
+                    "Last name is required for Latin names",
+                ));
+            }
         }
 
         if validate_email(&request.email).is_err() {
@@ -510,7 +525,23 @@ impl CustomerService {
 
         if let Some(last_name) = &request.last_name {
             if last_name.trim().is_empty() {
-                return Err(ErpError::validation_simple("Last name cannot be empty"));
+                // Check if first_name contains non-ASCII characters (likely Asian name)
+                if let Some(first_name) = &request.first_name {
+                    let has_non_ascii = first_name.chars().any(|c| {
+                        (c >= '\u{AC00}' && c <= '\u{D7AF}') || // Korean Hangul
+                        (c >= '\u{3040}' && c <= '\u{309F}') || // Japanese Hiragana
+                        (c >= '\u{30A0}' && c <= '\u{30FF}') || // Japanese Katakana
+                        (c >= '\u{4E00}' && c <= '\u{9FAF}') || // CJK Unified Ideographs
+                        (!c.is_ascii() && c.is_alphabetic()) // Other non-ASCII alphabetic characters
+                    });
+                    if !has_non_ascii {
+                        return Err(ErpError::validation_simple(
+                            "Last name cannot be empty for non-Asian names",
+                        ));
+                    }
+                } else {
+                    return Err(ErpError::validation_simple("Last name cannot be empty"));
+                }
             }
         }
 

@@ -36,79 +36,449 @@ pub trait CustomerRepository: Send + Sync {
 }
 
 pub struct PostgresCustomerRepository {
-    _pool: Arc<Pool<Postgres>>,
+    pool: Arc<Pool<Postgres>>,
 }
 
 impl PostgresCustomerRepository {
     pub fn new(pool: Arc<Pool<Postgres>>) -> Self {
-        Self { _pool: pool }
+        Self { pool }
     }
 }
 
 #[async_trait]
 impl CustomerRepository for PostgresCustomerRepository {
-    async fn create_customer(&self, _customer: &Customer) -> ErpResult<()> {
-        // TODO: Implement with proper SQLx queries when database is set up
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn create_customer(&self, customer: &Customer) -> ErpResult<()> {
+        let full_name = format!("{} {}", customer.first_name, customer.last_name)
+            .trim()
+            .to_string();
+        let customer_type_str = match customer.customer_type {
+            CustomerType::Individual => "individual",
+            CustomerType::Business => "business",
+            CustomerType::Wholesale => "wholesale",
+            CustomerType::Retail => "retail",
+        };
+
+        sqlx::query!(
+            r#"
+            INSERT INTO customers (id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            "#,
+            customer.id.to_string(),
+            full_name,
+            customer.email,
+            customer.phone,
+            customer_type_str,
+            customer.company_name,
+            customer.tax_id,
+            customer.credit_limit,
+            customer.current_balance,
+            customer.notes
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to create customer: {}", e)))?;
+
+        Ok(())
     }
 
-    async fn create_customer_address(&self, _address: &CustomerAddress) -> ErpResult<()> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn create_customer_address(&self, address: &CustomerAddress) -> ErpResult<()> {
+        let address_type_str = match address.address_type {
+            AddressType::Billing => "billing",
+            AddressType::Shipping => "shipping",
+            AddressType::Both => "both",
+        };
+
+        sqlx::query!(
+            r#"
+            INSERT INTO customer_addresses (id, customer_id, address_type, address_line1, city, state_province, postal_code, country, is_default)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            "#,
+            address.id.to_string(),
+            address.customer_id.to_string(),
+            address_type_str,
+            address.street_address,
+            address.city,
+            address.state_province,
+            address.postal_code,
+            address.country,
+            address.is_default
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to create customer address: {}", e)))?;
+
+        Ok(())
     }
 
-    async fn get_customer_by_id(&self, _id: Uuid) -> ErpResult<Option<Customer>> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn get_customer_by_id(&self, id: Uuid) -> ErpResult<Option<Customer>> {
+        let row = sqlx::query!(
+            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+             FROM customers WHERE id = $1",
+            id.to_string()
+        )
+        .fetch_optional(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to get customer by id: {}", e)))?;
+
+        if let Some(row) = row {
+            let customer_type = match row.customer_type.as_deref() {
+                Some("individual") => CustomerType::Individual,
+                Some("business") => CustomerType::Business,
+                Some("wholesale") => CustomerType::Wholesale,
+                Some("retail") => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
+
+            let status = match row.status.as_deref() {
+                Some("active") => CustomerStatus::Active,
+                Some("inactive") => CustomerStatus::Inactive,
+                Some("suspended") => CustomerStatus::Suspended,
+                Some("blacklisted") => CustomerStatus::Blacklisted,
+                _ => CustomerStatus::Active,
+            };
+
+            let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
+            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let last_name = name_parts.get(1).unwrap_or(&"").to_string();
+
+            let customer = Customer {
+                id,
+                customer_code: format!("CUST-{}", &row.id[..8]),
+                first_name,
+                last_name,
+                company_name: row.company,
+                email: row.email.unwrap_or_default(),
+                phone: row.phone,
+                customer_type,
+                status,
+                credit_limit: row.credit_limit.unwrap_or_default(),
+                current_balance: row.current_balance.unwrap_or_default(),
+                tax_id: row.tax_id,
+                notes: row.notes,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            };
+
+            Ok(Some(customer))
+        } else {
+            Ok(None)
+        }
     }
 
-    async fn get_customer_by_code(&self, _customer_code: &str) -> ErpResult<Option<Customer>> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn get_customer_by_code(&self, customer_code: &str) -> ErpResult<Option<Customer>> {
+        // Extract UUID from customer code format "CUST-{first 8 chars of UUID}"
+        if !customer_code.starts_with("CUST-") || customer_code.len() < 13 {
+            return Ok(None);
+        }
+
+        let partial_id = &customer_code[5..13]; // Extract the 8-char UUID prefix
+
+        let row = sqlx::query!(
+            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+             FROM customers WHERE SUBSTRING(id, 1, 8) = $1",
+            partial_id
+        )
+        .fetch_optional(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to get customer by code: {}", e)))?;
+
+        if let Some(row) = row {
+            let customer_type = match row.customer_type.as_deref() {
+                Some("individual") => CustomerType::Individual,
+                Some("business") => CustomerType::Business,
+                Some("wholesale") => CustomerType::Wholesale,
+                Some("retail") => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
+
+            let status = match row.status.as_deref() {
+                Some("active") => CustomerStatus::Active,
+                Some("inactive") => CustomerStatus::Inactive,
+                Some("suspended") => CustomerStatus::Suspended,
+                Some("blacklisted") => CustomerStatus::Blacklisted,
+                _ => CustomerStatus::Active,
+            };
+
+            let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
+            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let last_name = name_parts.get(1).unwrap_or(&"").to_string();
+
+            let customer = Customer {
+                id: uuid::Uuid::parse_str(&row.id)
+                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
+                customer_code: format!("CUST-{}", &row.id[..8]),
+                first_name,
+                last_name,
+                company_name: row.company,
+                email: row.email.unwrap_or_default(),
+                phone: row.phone,
+                customer_type,
+                status,
+                credit_limit: row.credit_limit.unwrap_or_default(),
+                current_balance: row.current_balance.unwrap_or_default(),
+                tax_id: row.tax_id,
+                notes: row.notes,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            };
+
+            Ok(Some(customer))
+        } else {
+            Ok(None)
+        }
     }
 
-    async fn get_customer_by_email(&self, _email: &str) -> ErpResult<Option<Customer>> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn get_customer_by_email(&self, email: &str) -> ErpResult<Option<Customer>> {
+        let row = sqlx::query!(
+            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+             FROM customers WHERE email = $1",
+            email
+        )
+        .fetch_optional(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to get customer by email: {}", e)))?;
+
+        if let Some(row) = row {
+            let customer_type = match row.customer_type.as_deref() {
+                Some("individual") => CustomerType::Individual,
+                Some("business") => CustomerType::Business,
+                Some("wholesale") => CustomerType::Wholesale,
+                Some("retail") => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
+
+            let status = match row.status.as_deref() {
+                Some("active") => CustomerStatus::Active,
+                Some("inactive") => CustomerStatus::Inactive,
+                Some("suspended") => CustomerStatus::Suspended,
+                Some("blacklisted") => CustomerStatus::Blacklisted,
+                _ => CustomerStatus::Active,
+            };
+
+            let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
+            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let last_name = name_parts.get(1).unwrap_or(&"").to_string();
+
+            let customer = Customer {
+                id: uuid::Uuid::parse_str(&row.id)
+                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
+                customer_code: format!("CUST-{}", &row.id[..8]),
+                first_name,
+                last_name,
+                company_name: row.company,
+                email: row.email.unwrap_or_default(),
+                phone: row.phone,
+                customer_type,
+                status,
+                credit_limit: row.credit_limit.unwrap_or_default(),
+                current_balance: row.current_balance.unwrap_or_default(),
+                tax_id: row.tax_id,
+                notes: row.notes,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            };
+
+            Ok(Some(customer))
+        } else {
+            Ok(None)
+        }
     }
 
-    async fn get_customer_addresses(&self, _customer_id: Uuid) -> ErpResult<Vec<CustomerAddress>> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn get_customer_addresses(&self, customer_id: Uuid) -> ErpResult<Vec<CustomerAddress>> {
+        let rows = sqlx::query!(
+            "SELECT id, customer_id, address_type, address_line1, address_line2, city, state_province, postal_code, country, is_default, created_at
+             FROM customer_addresses WHERE customer_id = $1",
+            customer_id.to_string()
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to get customer addresses: {}", e)))?;
+
+        let mut addresses = Vec::new();
+        for row in rows {
+            let address_type = match row.address_type.as_str() {
+                "billing" => AddressType::Billing,
+                "shipping" => AddressType::Shipping,
+                "both" => AddressType::Both,
+                _ => AddressType::Billing,
+            };
+
+            let address = CustomerAddress {
+                id: uuid::Uuid::parse_str(&row.id)
+                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
+                customer_id,
+                address_type,
+                street_address: row.address_line1,
+                city: row.city.unwrap_or_default(),
+                state_province: row.state_province.unwrap_or_default(),
+                postal_code: row.postal_code.unwrap_or_default(),
+                country: row.country.unwrap_or_default(),
+                is_default: row.is_default,
+                created_at: row.created_at,
+                updated_at: row.created_at, // Use created_at for updated_at since there's no updated_at in addresses table
+            };
+
+            addresses.push(address);
+        }
+
+        Ok(addresses)
     }
 
     async fn list_customers(
         &self,
-        _filter: &CustomerFilter,
-        _page: u32,
-        _per_page: u32,
+        filter: &CustomerFilter,
+        page: u32,
+        per_page: u32,
     ) -> ErpResult<CustomerListResponse> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+        let offset = (page - 1) * per_page;
+
+        // Build dynamic query based on filters (simplified for now)
+        let _where_clause = if filter.search.is_some() {
+            // TODO: Implement proper filtering
+            String::new()
+        } else {
+            String::new()
+        };
+
+        // Get total count (simplified for now)
+        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM customers")
+            .fetch_one(&*self.pool)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to count customers: {}", e)))?;
+
+        // Get customers with pagination (simplified for now)
+        let rows = sqlx::query!(
+            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
+             FROM customers ORDER BY created_at DESC LIMIT $1 OFFSET $2",
+            per_page as i64,
+            offset as i64
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to fetch customers: {}", e)))?;
+
+        let mut customers = Vec::new();
+        for row in rows {
+            let id = row.id;
+            let name = row.name;
+            let email = row.email;
+            let phone = row.phone;
+            let customer_type_str = row.customer_type;
+            let company = row.company;
+            let tax_id = row.tax_id;
+            let credit_limit = row.credit_limit;
+            let current_balance = row.current_balance;
+            let notes = row.notes;
+            let created_at = row.created_at;
+            let updated_at = row.updated_at;
+
+            // Parse customer type
+            let customer_type = match customer_type_str.as_deref() {
+                Some("individual") => CustomerType::Individual,
+                Some("business") => CustomerType::Business,
+                Some("wholesale") => CustomerType::Wholesale,
+                Some("retail") => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
+
+            // Split name into first and last name (simplified)
+            let name_parts: Vec<&str> = name.splitn(2, ' ').collect();
+            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let last_name = name_parts.get(1).unwrap_or(&"").to_string();
+
+            let customer = Customer {
+                id: uuid::Uuid::parse_str(&id)
+                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
+                customer_code: format!("CUST-{}", &id[..8]), // Generate code from ID
+                first_name,
+                last_name,
+                company_name: company,
+                email: email.unwrap_or_default(),
+                phone,
+                customer_type,
+                status: CustomerStatus::Active, // Default status
+                credit_limit: credit_limit.unwrap_or_default(),
+                current_balance: current_balance.unwrap_or_default(),
+                tax_id,
+                notes,
+                created_at,
+                updated_at,
+            };
+
+            customers.push(customer.to_response(Vec::new())); // Empty addresses for now
+        }
+
+        Ok(CustomerListResponse {
+            customers,
+            total,
+            page,
+            per_page,
+        })
     }
 
-    async fn update_customer(&self, _id: Uuid, _customer: &Customer) -> ErpResult<()> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn update_customer(&self, id: Uuid, customer: &Customer) -> ErpResult<()> {
+        let full_name = format!("{} {}", customer.first_name, customer.last_name)
+            .trim()
+            .to_string();
+        let customer_type_str = match customer.customer_type {
+            CustomerType::Individual => "individual",
+            CustomerType::Business => "business",
+            CustomerType::Wholesale => "wholesale",
+            CustomerType::Retail => "retail",
+        };
+        let status_str = match customer.status {
+            CustomerStatus::Active => "active",
+            CustomerStatus::Inactive => "inactive",
+            CustomerStatus::Suspended => "suspended",
+            CustomerStatus::Blacklisted => "blacklisted",
+        };
+
+        sqlx::query!(
+            r#"
+            UPDATE customers
+            SET name = $2, email = $3, phone = $4, customer_type = $5, company = $6,
+                tax_id = $7, credit_limit = $8, current_balance = $9, notes = $10,
+                status = $11, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            "#,
+            id.to_string(),
+            full_name,
+            customer.email,
+            customer.phone,
+            customer_type_str,
+            customer.company_name,
+            customer.tax_id,
+            customer.credit_limit,
+            customer.current_balance,
+            customer.notes,
+            status_str
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to update customer: {}", e)))?;
+
+        Ok(())
     }
 
     async fn update_customer_balance(
         &self,
-        _id: Uuid,
-        _new_balance: rust_decimal::Decimal,
+        id: Uuid,
+        new_balance: rust_decimal::Decimal,
     ) -> ErpResult<()> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+        sqlx::query!(
+            r#"
+            UPDATE customers
+            SET current_balance = $2, updated_at = CURRENT_TIMESTAMP
+            WHERE id = $1
+            "#,
+            id.to_string(),
+            new_balance
+        )
+        .execute(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to update customer balance: {}", e)))?;
+
+        Ok(())
     }
 
     async fn delete_customer(&self, _id: Uuid) -> ErpResult<()> {
@@ -117,10 +487,58 @@ impl CustomerRepository for PostgresCustomerRepository {
         ))
     }
 
-    async fn search_customers(&self, _query: &str, _limit: u32) -> ErpResult<Vec<Customer>> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn search_customers(&self, query: &str, limit: u32) -> ErpResult<Vec<Customer>> {
+        let search_pattern = format!("%{}%", query);
+        let rows = sqlx::query!(
+            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
+             FROM customers
+             WHERE name ILIKE $1 OR email ILIKE $1 OR company ILIKE $1
+             ORDER BY created_at DESC
+             LIMIT $2",
+            search_pattern,
+            limit as i64
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to search customers: {}", e)))?;
+
+        let mut customers = Vec::new();
+        for row in rows {
+            let customer_type = match row.customer_type.as_deref() {
+                Some("individual") => CustomerType::Individual,
+                Some("business") => CustomerType::Business,
+                Some("wholesale") => CustomerType::Wholesale,
+                Some("retail") => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
+
+            let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
+            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let last_name = name_parts.get(1).unwrap_or(&"").to_string();
+
+            let customer = Customer {
+                id: uuid::Uuid::parse_str(&row.id)
+                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
+                customer_code: format!("CUST-{}", &row.id[..8]),
+                first_name,
+                last_name,
+                company_name: row.company,
+                email: row.email.unwrap_or_default(),
+                phone: row.phone,
+                customer_type,
+                status: CustomerStatus::Active,
+                credit_limit: row.credit_limit.unwrap_or_default(),
+                current_balance: row.current_balance.unwrap_or_default(),
+                tax_id: row.tax_id,
+                notes: row.notes,
+                created_at: row.created_at,
+                updated_at: row.updated_at,
+            };
+
+            customers.push(customer);
+        }
+
+        Ok(customers)
     }
 
     async fn get_customers_with_outstanding_balance(&self) -> ErpResult<Vec<Customer>> {
