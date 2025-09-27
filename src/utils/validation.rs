@@ -67,7 +67,7 @@ pub fn validate_password(password: &str, config: &ValidationConfig) -> ErpResult
     if password.len() < config.min_password_length {
         return Err(ErpError::validation(
             "password",
-            &format!(
+            format!(
                 "must be at least {} characters long",
                 config.min_password_length
             ),
@@ -129,7 +129,7 @@ pub fn validate_name(name: &str, field_name: &str, config: &ValidationConfig) ->
     if trimmed.len() > config.max_name_length {
         return Err(ErpError::validation(
             field_name,
-            &format!("exceeds maximum length of {}", config.max_name_length),
+            format!("exceeds maximum length of {}", config.max_name_length),
         ));
     }
 
@@ -147,7 +147,7 @@ pub fn validate_description(description: &str, config: &ValidationConfig) -> Erp
     if description.len() > config.max_description_length {
         return Err(ErpError::validation(
             "description",
-            &format!(
+            format!(
                 "exceeds maximum length of {}",
                 config.max_description_length
             ),
@@ -256,7 +256,7 @@ where
 
         Err(ErpError::validation(
             field_name,
-            &format!("must be one of: {}", allowed_list),
+            format!("must be one of: {}", allowed_list),
         ))
     }
 }
@@ -289,7 +289,7 @@ pub fn validate_string_length(
         if length < min {
             return Err(ErpError::validation(
                 field_name,
-                &format!("must be at least {} characters long", min),
+                format!("must be at least {} characters long", min),
             ));
         }
     }
@@ -298,7 +298,7 @@ pub fn validate_string_length(
         if length > max {
             return Err(ErpError::validation(
                 field_name,
-                &format!("must be no more than {} characters long", max),
+                format!("must be no more than {} characters long", max),
             ));
         }
     }
@@ -533,8 +533,9 @@ mod tests {
     #[test]
     fn test_sanitize_input() {
         assert_eq!(sanitize_input("  hello world  "), "hello world");
-        assert_eq!(sanitize_input("hello\nworld\t"), "hello\nworld\t"); // Whitespace preserved
+        assert_eq!(sanitize_input("hello\nworld\t"), "hello\nworld"); // Tab is trimmed but newline is preserved
         assert_eq!(sanitize_input("hello\x00world"), "helloworld"); // Control character removed
+        assert_eq!(sanitize_input("test\r\nline"), "test\r\nline"); // Both CR and LF are preserved as whitespace
     }
 
     #[test]

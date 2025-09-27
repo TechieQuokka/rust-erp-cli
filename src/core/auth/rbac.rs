@@ -18,16 +18,12 @@ impl Permission {
         }
     }
 
-    pub fn to_string(&self) -> String {
-        format!("{}:{}", self.resource, self.action)
-    }
-
     pub fn from_string(permission: &str) -> ErpResult<Self> {
         let parts: Vec<&str> = permission.split(':').collect();
         if parts.len() != 2 {
             return Err(ErpError::validation(
                 "permission",
-                &format!(
+                format!(
                     "Invalid permission format: {}. Expected format: resource:action",
                     permission
                 ),
@@ -275,7 +271,7 @@ impl RbacService {
 
         self.user_permissions
             .entry(user_id)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(permission);
 
         Ok(())
@@ -303,7 +299,7 @@ impl RbacService {
 
         self.role_permissions
             .entry(role)
-            .or_insert_with(HashSet::new)
+            .or_default()
             .insert(permission);
 
         Ok(())

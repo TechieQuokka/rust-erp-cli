@@ -299,6 +299,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_database_connection_creation() {
+        // Ensure we're using test config, not environment variables
+        std::env::remove_var("DATABASE_URL");
         let config = create_test_config();
         let result = DatabaseConnection::new(config).await;
         assert!(result.is_ok());
@@ -306,6 +308,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_check() {
+        std::env::remove_var("DATABASE_URL");
         let config = create_test_config();
         let connection = DatabaseConnection::new(config).await.unwrap();
         let result = connection.health_check().await;
@@ -314,6 +317,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_pool_info() {
+        std::env::remove_var("DATABASE_URL");
         let config = create_test_config();
         let connection = DatabaseConnection::new(config).await.unwrap();
         let pool_info = connection.get_pool_info().await;
@@ -324,6 +328,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_transaction_manager_creation() {
+        std::env::remove_var("DATABASE_URL");
         let config = create_test_config();
         let _ = DatabaseConnection::new(config).await.unwrap();
 

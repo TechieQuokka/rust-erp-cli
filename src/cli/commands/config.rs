@@ -80,13 +80,14 @@ impl ConfigHandler {
 
         match service.get_config(key).await? {
             Some(config) => {
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "{}: {}",
                     style("Key").cyan().bold(),
                     style(&config.key).white()
-                ));
+                ))
+                .ok();
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "{}: {}",
                     style("Value").cyan().bold(),
                     if config.is_secret {
@@ -94,41 +95,46 @@ impl ConfigHandler {
                     } else {
                         style(config.value.clone()).green().to_string()
                     }
-                ));
+                ))
+                .ok();
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "{}: {}",
                     style("Category").cyan().bold(),
                     style(&config.category).yellow()
-                ));
+                ))
+                .ok();
 
                 if let Some(desc) = &config.description {
-                    let _ = term.write_line(&format!(
+                    term.write_line(&format!(
                         "{}: {}",
                         style("Description").cyan().bold(),
                         style(desc).white()
-                    ));
+                    ))
+                    .ok();
                 }
 
                 if config.is_secret {
-                    let _ = term
-                        .write_line(&style("🔐 This is a secret configuration").red().to_string());
+                    term.write_line(&style("🔐 This is a secret configuration").red().to_string())
+                        .ok();
                 }
 
                 if config.is_readonly {
-                    let _ = term.write_line(
+                    term.write_line(
                         &style("🔒 This configuration is read-only")
                             .yellow()
                             .to_string(),
-                    );
+                    )
+                    .ok();
                 }
             }
             None => {
-                let _ = term.write_line(
+                term.write_line(
                     &style(format!("Configuration '{}' not found", key))
                         .red()
                         .to_string(),
-                );
+                )
+                .ok();
             }
         }
 
@@ -151,13 +157,14 @@ impl ConfigHandler {
 
                 let updated = service.update_config(key, update_request).await?;
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "✅ {}: {}",
                     style("Updated configuration").green().bold(),
                     style(&updated.key).white()
-                ));
+                ))
+                .ok();
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "{}: {}",
                     style("New Value").cyan(),
                     if updated.is_secret {
@@ -165,7 +172,8 @@ impl ConfigHandler {
                     } else {
                         style(updated.value.clone()).green().to_string()
                     }
-                ));
+                ))
+                .ok();
             }
             None => {
                 // 새로운 설정 생성 (기본 카테고리 'system' 사용)
@@ -177,23 +185,26 @@ impl ConfigHandler {
 
                 let created = service.create_config(create_request).await?;
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "✅ {}: {}",
                     style("Created new configuration").green().bold(),
                     style(&created.key).white()
-                ));
+                ))
+                .ok();
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "{}: {}",
                     style("Value").cyan(),
                     style(&created.value).green()
-                ));
+                ))
+                .ok();
 
-                let _ = term.write_line(&format!(
+                term.write_line(&format!(
                     "{}: {}",
                     style("Category").cyan(),
                     style(&created.category).yellow()
-                ));
+                ))
+                .ok();
             }
         }
 
@@ -218,7 +229,8 @@ impl ConfigHandler {
         let configs = service.list_configs_for_display(config_filter).await?;
 
         if configs.is_empty() {
-            let _ = term.write_line(&style("No configurations found.").yellow().to_string());
+            term.write_line(&style("No configurations found.").yellow().to_string())
+                .ok();
             return Ok(());
         }
 
@@ -227,37 +239,41 @@ impl ConfigHandler {
             configs.into_iter().map(ConfigItemDisplay::from).collect();
 
         let table = Table::new(&display_items);
-        let _ = term.write_line(&table.to_string());
+        term.write_line(&table.to_string()).ok();
 
         // 통계 정보 출력
         let stats = service.get_config_statistics().await?;
-        let _ = term.write_line("")?; // 빈 줄
-        let _ = term.write_line(&format!(
+        term.write_line("")?; // 빈 줄
+        term.write_line(&format!(
             "{}: {}",
             style("Total configurations").cyan().bold(),
             style(stats.total_count).white()
-        ));
+        ))
+        .ok();
 
-        let _ = term.write_line(&format!(
+        term.write_line(&format!(
             "{}: {}",
             style("Categories").cyan().bold(),
             style(stats.category_count).white()
-        ));
+        ))
+        .ok();
 
         if stats.secret_count > 0 {
-            let _ = term.write_line(&format!(
+            term.write_line(&format!(
                 "{}: {}",
                 style("Secret configurations").red().bold(),
                 style(stats.secret_count).white()
-            ));
+            ))
+            .ok();
         }
 
         if stats.readonly_count > 0 {
-            let _ = term.write_line(&format!(
+            term.write_line(&format!(
                 "{}: {}",
                 style("Read-only configurations").yellow().bold(),
                 style(stats.readonly_count).white()
-            ));
+            ))
+            .ok();
         }
 
         Ok(())
@@ -266,23 +282,25 @@ impl ConfigHandler {
     async fn handle_path() -> ErpResult<()> {
         let term = Term::stdout();
 
-        let _ = term.write_line(&style("Configuration File Paths:").cyan().bold().to_string());
-        let _ = term.write_line("")?; // 빈 줄
+        term.write_line(&style("Configuration File Paths:").cyan().bold().to_string())
+            .ok();
+        term.write_line("")?; // 빈 줄
 
         let current_dir = std::env::current_dir().map_err(|e| {
-            crate::utils::error::ErpError::internal(&format!(
+            crate::utils::error::ErpError::internal(format!(
                 "Failed to get current directory: {}",
                 e
             ))
         })?;
 
-        let _ = term.write_line(&format!(
+        term.write_line(&format!(
             "{}: {}",
             style("Current Directory").yellow().bold(),
             style(current_dir.display().to_string()).white()
-        ));
+        ))
+        .ok();
 
-        let _ = term.write_line("")?; // 빈 줄
+        term.write_line("")?; // 빈 줄
 
         // 설정 파일들 확인
         let config_files = vec![
@@ -295,7 +313,7 @@ impl ConfigHandler {
             let full_path = current_dir.join(path);
             let exists = full_path.exists();
 
-            let _ = term.write_line(&format!(
+            term.write_line(&format!(
                 "{}: {}",
                 if exists {
                     style(format!("✅ {}", name)).green()
@@ -303,24 +321,27 @@ impl ConfigHandler {
                     style(format!("❌ {}", name)).red()
                 },
                 style(full_path.display()).white()
-            ));
+            ))
+            .ok();
         }
 
-        let _ = term.write_line("")?; // 빈 줄
+        term.write_line("")?; // 빈 줄
 
         // 데이터베이스 파일 경로
         if let Ok(db_path) = std::env::var("DATABASE_URL") {
-            let _ = term.write_line(&format!(
+            term.write_line(&format!(
                 "{}: {}",
                 style("Database").cyan().bold(),
                 style(&db_path).white()
-            ));
+            ))
+            .ok();
         } else {
-            let _ = term.write_line(&format!(
+            term.write_line(&format!(
                 "{}: {}",
                 style("Database").cyan().bold(),
                 style("Using default SQLite database").white()
-            ));
+            ))
+            .ok();
         }
 
         Ok(())
@@ -330,43 +351,49 @@ impl ConfigHandler {
         let term = Term::stdout();
 
         if !force {
-            let _ = term.write_line(
+            term.write_line(
                 &style("⚠️  Configuration reset requires --force flag")
                     .red()
                     .bold()
                     .to_string(),
-            );
-            let _ = term.write_line(
+            )
+            .ok();
+            term.write_line(
                 &style("This will delete all non-readonly configurations")
                     .yellow()
                     .to_string(),
-            );
-            let _ = term.write_line(&style("Use: config reset --force").white().to_string());
+            )
+            .ok();
+            term.write_line(&style("Use: config reset --force").white().to_string())
+                .ok();
             return Ok(());
         }
 
         // 확인 메시지
-        let _ = term.write_line(
+        term.write_line(
             &style("🗑️  Resetting all non-readonly configurations...")
                 .yellow()
                 .bold()
                 .to_string(),
-        );
+        )
+        .ok();
 
         // 초기화 실행
         let deleted_count = service.reset_configs(force).await?;
 
         if deleted_count > 0 {
-            let _ = term.write_line(&format!(
+            term.write_line(&format!(
                 "✅ {} configurations were deleted",
                 style(deleted_count).green().bold()
-            ));
+            ))
+            .ok();
         } else {
-            let _ = term.write_line(
+            term.write_line(
                 &style("No configurations were deleted (all are read-only)")
                     .yellow()
                     .to_string(),
-            );
+            )
+            .ok();
         }
 
         Ok(())

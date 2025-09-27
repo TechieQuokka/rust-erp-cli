@@ -65,7 +65,7 @@ impl CustomerHandler {
         customer_type: &Option<String>,
     ) -> ErpResult<()> {
         // Parse full name
-        let parts: Vec<&str> = name.trim().split_whitespace().collect();
+        let parts: Vec<&str> = name.split_whitespace().collect();
         if parts.len() < 2 {
             return Err(ErpError::validation_simple(
                 "Please provide both first and last name",
@@ -274,7 +274,7 @@ impl CustomerHandler {
 
         // Parse name if provided
         let (first_name, last_name) = if let Some(name_str) = name {
-            let parts: Vec<&str> = name_str.trim().split_whitespace().collect();
+            let parts: Vec<&str> = name_str.split_whitespace().collect();
             if parts.len() < 2 {
                 return Err(ErpError::validation_simple(
                     "Please provide both first and last name",

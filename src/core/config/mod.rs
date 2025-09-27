@@ -74,21 +74,11 @@ impl Default for AuthConfig {
     }
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize)]
+#[derive(Debug, Clone, Deserialize, Serialize, Default)]
 pub struct AppConfig {
     pub database: DatabaseConfig,
     pub logging: LoggingConfig,
     pub auth: AuthConfig,
-}
-
-impl Default for AppConfig {
-    fn default() -> Self {
-        Self {
-            database: DatabaseConfig::default(),
-            logging: LoggingConfig::default(),
-            auth: AuthConfig::default(),
-        }
-    }
 }
 
 impl AppConfig {

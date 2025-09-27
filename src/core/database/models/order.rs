@@ -475,15 +475,17 @@ impl OrderStatus {
     }
 
     pub fn can_transition_to(&self, new_status: &OrderStatus) -> bool {
-        match (self, new_status) {
-            (Self::Draft, Self::Pending | Self::Confirmed | Self::Cancelled) => true,
-            (Self::Pending, Self::Confirmed | Self::Cancelled) => true,
-            (Self::Confirmed, Self::Processing | Self::Cancelled) => true,
-            (Self::Processing, Self::Shipped | Self::Cancelled) => true,
-            (Self::Shipped, Self::Delivered | Self::Returned) => true,
-            (Self::Delivered, Self::Returned) => true,
-            _ => false,
-        }
+        matches!(
+            (self, new_status),
+            (
+                Self::Draft,
+                Self::Pending | Self::Confirmed | Self::Cancelled
+            ) | (Self::Pending, Self::Confirmed | Self::Cancelled)
+                | (Self::Confirmed, Self::Processing | Self::Cancelled)
+                | (Self::Processing, Self::Shipped | Self::Cancelled)
+                | (Self::Shipped, Self::Delivered | Self::Returned)
+                | (Self::Delivered, Self::Returned)
+        )
     }
 }
 

@@ -3,7 +3,7 @@ use chrono::{DateTime, Duration, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use sysinfo::{System, SystemExt, CpuExt, DiskExt, NetworkExt, NetworksExt};
+use sysinfo::{CpuExt, DiskExt, NetworkExt, NetworksExt, System, SystemExt};
 use tokio::time::{sleep, Duration as TokioDuration};
 use tracing::{debug, error, info, warn};
 use uuid::Uuid;
@@ -142,7 +142,10 @@ pub trait MetricsRepository: Send + Sync {
     async fn store_alert(&self, alert: &Alert) -> ErpResult<()>;
 
     async fn get_system_metrics(&self, since: DateTime<Utc>) -> ErpResult<Vec<SystemMetrics>>;
-    async fn get_application_metrics(&self, since: DateTime<Utc>) -> ErpResult<Vec<ApplicationMetrics>>;
+    async fn get_application_metrics(
+        &self,
+        since: DateTime<Utc>,
+    ) -> ErpResult<Vec<ApplicationMetrics>>;
     async fn get_security_metrics(&self, since: DateTime<Utc>) -> ErpResult<Vec<SecurityMetrics>>;
     async fn get_health_status(&self, service: Option<&str>) -> ErpResult<Vec<HealthStatus>>;
     async fn get_alerts(&self, resolved: Option<bool>) -> ErpResult<Vec<Alert>>;
@@ -194,7 +197,10 @@ impl MonitoringService {
             return Ok(());
         }
 
-        info!("Starting monitoring service with interval: {} seconds", self.config.collection_interval_seconds);
+        info!(
+            "Starting monitoring service with interval: {} seconds",
+            self.config.collection_interval_seconds
+        );
 
         let interval = TokioDuration::from_secs(self.config.collection_interval_seconds);
 
@@ -222,14 +228,18 @@ impl MonitoringService {
     async fn collect_and_store_metrics(&self) -> ErpResult<()> {
         // Collect system metrics
         let system_metrics = self.collect_system_metrics()?;
-        self.repository.store_system_metrics(&system_metrics).await?;
+        self.repository
+            .store_system_metrics(&system_metrics)
+            .await?;
 
         // Store application metrics
         let app_metrics = {
             let metrics = self.application_metrics.lock().unwrap();
             metrics.clone()
         };
-        self.repository.store_application_metrics(&app_metrics).await?;
+        self.repository
+            .store_application_metrics(&app_metrics)
+            .await?;
 
         // Store security metrics
         let sec_metrics = {
@@ -243,7 +253,10 @@ impl MonitoringService {
     }
 
     fn collect_system_metrics(&self) -> ErpResult<SystemMetrics> {
-        let mut system = self.system.lock().map_err(|_| ErpError::internal("Lock poisoned"))?;
+        let mut system = self
+            .system
+            .lock()
+            .map_err(|_| ErpError::internal("Lock poisoned"))?;
         system.refresh_all();
 
         let cpu_usage = system.global_cpu_info().cpu_usage();
@@ -256,8 +269,8 @@ impl MonitoringService {
         let disk_available = system.disks().iter().map(|d| d.available_space()).sum();
         let disk_used = disk_total - disk_available;
 
-        let (network_rx_bytes, network_tx_bytes) = system.networks().iter()
-            .fold((0, 0), |(rx, tx), (_, net)| {
+        let (network_rx_bytes, network_tx_bytes) =
+            system.networks().iter().fold((0, 0), |(rx, tx), (_, net)| {
                 (rx + net.received(), tx + net.transmitted())
             });
 
@@ -287,7 +300,10 @@ impl MonitoringService {
     async fn run_health_checks(&self) -> ErpResult<()> {
         let checks = {
             let health_checks = self.health_checks.lock().unwrap();
-            health_checks.iter().map(|c| c.name().to_string()).collect::<Vec<_>>()
+            health_checks
+                .iter()
+                .map(|c| c.name().to_string())
+                .collect::<Vec<_>>()
         };
 
         for check_name in checks {
@@ -304,7 +320,10 @@ impl MonitoringService {
                             service: check_name.clone(),
                             status: HealthState::Critical,
                             timestamp: Utc::now(),
-                            details: [("error".to_string(), e.to_string())].iter().cloned().collect(),
+                            details: [("error".to_string(), e.to_string())]
+                                .iter()
+                                .cloned()
+                                .collect(),
                             response_time_ms: None,
                         };
                         self.repository.store_health_status(&status).await?;
@@ -325,45 +344,83 @@ impl MonitoringService {
                 AlertSeverity::Critical,
                 AlertCategory::System,
                 "High CPU Usage".to_string(),
-                format!("CPU usage is {}%, which exceeds critical threshold of {}%",
-                       system_metrics.cpu_usage, self.config.cpu_critical_threshold),
-                [("cpu_usage".to_string(), system_metrics.cpu_usage.to_string())].iter().cloned().collect(),
-            ).await?;
+                format!(
+                    "CPU usage is {}%, which exceeds critical threshold of {}%",
+                    system_metrics.cpu_usage, self.config.cpu_critical_threshold
+                ),
+                [(
+                    "cpu_usage".to_string(),
+                    system_metrics.cpu_usage.to_string(),
+                )]
+                .iter()
+                .cloned()
+                .collect(),
+            )
+            .await?;
         } else if system_metrics.cpu_usage > self.config.cpu_warning_threshold {
             self.create_alert(
                 AlertSeverity::Warning,
                 AlertCategory::System,
                 "Elevated CPU Usage".to_string(),
-                format!("CPU usage is {}%, which exceeds warning threshold of {}%",
-                       system_metrics.cpu_usage, self.config.cpu_warning_threshold),
-                [("cpu_usage".to_string(), system_metrics.cpu_usage.to_string())].iter().cloned().collect(),
-            ).await?;
+                format!(
+                    "CPU usage is {}%, which exceeds warning threshold of {}%",
+                    system_metrics.cpu_usage, self.config.cpu_warning_threshold
+                ),
+                [(
+                    "cpu_usage".to_string(),
+                    system_metrics.cpu_usage.to_string(),
+                )]
+                .iter()
+                .cloned()
+                .collect(),
+            )
+            .await?;
         }
 
         // Check memory alerts
-        let memory_usage_percent = (system_metrics.memory_used as f32 / system_metrics.memory_total as f32) * 100.0;
+        let memory_usage_percent =
+            (system_metrics.memory_used as f32 / system_metrics.memory_total as f32) * 100.0;
         if memory_usage_percent > self.config.memory_critical_threshold {
             self.create_alert(
                 AlertSeverity::Critical,
                 AlertCategory::System,
                 "High Memory Usage".to_string(),
-                format!("Memory usage is {:.1}%, which exceeds critical threshold of {}%",
-                       memory_usage_percent, self.config.memory_critical_threshold),
-                [("memory_usage_percent".to_string(), memory_usage_percent.to_string())].iter().cloned().collect(),
-            ).await?;
+                format!(
+                    "Memory usage is {:.1}%, which exceeds critical threshold of {}%",
+                    memory_usage_percent, self.config.memory_critical_threshold
+                ),
+                [(
+                    "memory_usage_percent".to_string(),
+                    memory_usage_percent.to_string(),
+                )]
+                .iter()
+                .cloned()
+                .collect(),
+            )
+            .await?;
         }
 
         // Check disk alerts
-        let disk_usage_percent = (system_metrics.disk_used as f32 / system_metrics.disk_total as f32) * 100.0;
+        let disk_usage_percent =
+            (system_metrics.disk_used as f32 / system_metrics.disk_total as f32) * 100.0;
         if disk_usage_percent > self.config.disk_critical_threshold {
             self.create_alert(
                 AlertSeverity::Critical,
                 AlertCategory::System,
                 "High Disk Usage".to_string(),
-                format!("Disk usage is {:.1}%, which exceeds critical threshold of {}%",
-                       disk_usage_percent, self.config.disk_critical_threshold),
-                [("disk_usage_percent".to_string(), disk_usage_percent.to_string())].iter().cloned().collect(),
-            ).await?;
+                format!(
+                    "Disk usage is {:.1}%, which exceeds critical threshold of {}%",
+                    disk_usage_percent, self.config.disk_critical_threshold
+                ),
+                [(
+                    "disk_usage_percent".to_string(),
+                    disk_usage_percent.to_string(),
+                )]
+                .iter()
+                .cloned()
+                .collect(),
+            )
+            .await?;
         }
 
         Ok(())
@@ -447,7 +504,10 @@ impl MonitoringService {
     where
         F: FnOnce(&mut ApplicationMetrics),
     {
-        let mut metrics = self.application_metrics.lock().map_err(|_| ErpError::internal("Lock poisoned"))?;
+        let mut metrics = self
+            .application_metrics
+            .lock()
+            .map_err(|_| ErpError::internal("Lock poisoned"))?;
         metrics.timestamp = Utc::now();
         update_fn(&mut metrics);
         Ok(())
@@ -457,7 +517,10 @@ impl MonitoringService {
     where
         F: FnOnce(&mut SecurityMetrics),
     {
-        let mut metrics = self.security_metrics.lock().map_err(|_| ErpError::internal("Lock poisoned"))?;
+        let mut metrics = self
+            .security_metrics
+            .lock()
+            .map_err(|_| ErpError::internal("Lock poisoned"))?;
         metrics.timestamp = Utc::now();
         update_fn(&mut metrics);
         Ok(())
@@ -477,15 +540,18 @@ impl MonitoringService {
         let health_statuses = self.repository.get_health_status(None).await?;
         let active_alerts = self.get_active_alerts().await?;
 
-        let critical_alerts = active_alerts.iter()
+        let critical_alerts = active_alerts
+            .iter()
             .filter(|a| a.severity == AlertSeverity::Critical)
             .count();
 
-        let warning_alerts = active_alerts.iter()
+        let warning_alerts = active_alerts
+            .iter()
             .filter(|a| a.severity == AlertSeverity::Warning)
             .count();
 
-        let healthy_services = health_statuses.iter()
+        let healthy_services = health_statuses
+            .iter()
             .filter(|s| s.status == HealthState::Healthy)
             .count();
 
@@ -501,8 +567,12 @@ impl MonitoringService {
                 HealthState::Healthy
             },
             cpu_usage: system_metrics.cpu_usage,
-            memory_usage_percent: (system_metrics.memory_used as f32 / system_metrics.memory_total as f32) * 100.0,
-            disk_usage_percent: (system_metrics.disk_used as f32 / system_metrics.disk_total as f32) * 100.0,
+            memory_usage_percent: (system_metrics.memory_used as f32
+                / system_metrics.memory_total as f32)
+                * 100.0,
+            disk_usage_percent: (system_metrics.disk_used as f32
+                / system_metrics.disk_total as f32)
+                * 100.0,
             healthy_services,
             total_services,
             active_alerts: active_alerts.len(),
@@ -590,7 +660,10 @@ impl HealthCheck for DatabaseHealthCheck {
             service: self.name.clone(),
             status,
             timestamp: Utc::now(),
-            details: [("response_time_ms".to_string(), response_time_ms.to_string())].iter().cloned().collect(),
+            details: [("response_time_ms".to_string(), response_time_ms.to_string())]
+                .iter()
+                .cloned()
+                .collect(),
             response_time_ms: Some(response_time_ms),
         })
     }
@@ -656,23 +729,42 @@ impl MetricsRepository for MockMetricsRepository {
 
     async fn get_system_metrics(&self, since: DateTime<Utc>) -> ErpResult<Vec<SystemMetrics>> {
         let metrics = self.system_metrics.lock().unwrap();
-        Ok(metrics.iter().filter(|m| m.timestamp > since).cloned().collect())
+        Ok(metrics
+            .iter()
+            .filter(|m| m.timestamp > since)
+            .cloned()
+            .collect())
     }
 
-    async fn get_application_metrics(&self, since: DateTime<Utc>) -> ErpResult<Vec<ApplicationMetrics>> {
+    async fn get_application_metrics(
+        &self,
+        since: DateTime<Utc>,
+    ) -> ErpResult<Vec<ApplicationMetrics>> {
         let metrics = self.application_metrics.lock().unwrap();
-        Ok(metrics.iter().filter(|m| m.timestamp > since).cloned().collect())
+        Ok(metrics
+            .iter()
+            .filter(|m| m.timestamp > since)
+            .cloned()
+            .collect())
     }
 
     async fn get_security_metrics(&self, since: DateTime<Utc>) -> ErpResult<Vec<SecurityMetrics>> {
         let metrics = self.security_metrics.lock().unwrap();
-        Ok(metrics.iter().filter(|m| m.timestamp > since).cloned().collect())
+        Ok(metrics
+            .iter()
+            .filter(|m| m.timestamp > since)
+            .cloned()
+            .collect())
     }
 
     async fn get_health_status(&self, service: Option<&str>) -> ErpResult<Vec<HealthStatus>> {
         let statuses = self.health_statuses.lock().unwrap();
         if let Some(service_name) = service {
-            Ok(statuses.iter().filter(|s| s.service == service_name).cloned().collect())
+            Ok(statuses
+                .iter()
+                .filter(|s| s.service == service_name)
+                .cloned()
+                .collect())
         } else {
             Ok(statuses.clone())
         }
@@ -681,7 +773,11 @@ impl MetricsRepository for MockMetricsRepository {
     async fn get_alerts(&self, resolved: Option<bool>) -> ErpResult<Vec<Alert>> {
         let alerts = self.alerts.lock().unwrap();
         if let Some(resolved_filter) = resolved {
-            Ok(alerts.iter().filter(|a| a.resolved == resolved_filter).cloned().collect())
+            Ok(alerts
+                .iter()
+                .filter(|a| a.resolved == resolved_filter)
+                .cloned()
+                .collect())
         } else {
             Ok(alerts.clone())
         }
@@ -750,7 +846,10 @@ mod tests {
             category: AlertCategory::System,
             title: "High CPU Usage".to_string(),
             description: "CPU usage exceeds 90%".to_string(),
-            metrics: [("cpu_usage".to_string(), "95.0".to_string())].iter().cloned().collect(),
+            metrics: [("cpu_usage".to_string(), "95.0".to_string())]
+                .iter()
+                .cloned()
+                .collect(),
             resolved: false,
             resolved_at: None,
         };
@@ -767,7 +866,10 @@ mod tests {
             service: "database".to_string(),
             status: HealthState::Healthy,
             timestamp: Utc::now(),
-            details: [("connection_pool_size".to_string(), "10".to_string())].iter().cloned().collect(),
+            details: [("connection_pool_size".to_string(), "10".to_string())]
+                .iter()
+                .cloned()
+                .collect(),
             response_time_ms: Some(25),
         };
 
@@ -811,7 +913,10 @@ mod tests {
         let status = health_check.check().await.unwrap();
 
         assert_eq!(status.service, "database");
-        assert!(matches!(status.status, HealthState::Healthy | HealthState::Warning));
+        assert!(matches!(
+            status.status,
+            HealthState::Healthy | HealthState::Warning
+        ));
         assert!(status.response_time_ms.is_some());
     }
 

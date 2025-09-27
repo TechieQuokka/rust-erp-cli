@@ -117,7 +117,8 @@ impl Default for BackupConfig {
 pub trait BackupRepository: Send + Sync {
     async fn store_metadata(&self, metadata: &BackupMetadata) -> ErpResult<()>;
     async fn get_metadata(&self, backup_id: Uuid) -> ErpResult<Option<BackupMetadata>>;
-    async fn list_backups(&self, backup_type: Option<BackupType>) -> ErpResult<Vec<BackupMetadata>>;
+    async fn list_backups(&self, backup_type: Option<BackupType>)
+        -> ErpResult<Vec<BackupMetadata>>;
     async fn update_metadata(&self, metadata: &BackupMetadata) -> ErpResult<()>;
     async fn delete_metadata(&self, backup_id: Uuid) -> ErpResult<()>;
     async fn cleanup_old_backups(&self, before: DateTime<Utc>) -> ErpResult<u64>;
@@ -143,8 +144,11 @@ impl BackupService {
 
         let backup_id = Uuid::new_v4();
         let timestamp = Utc::now();
-        let backup_filename = format!("full_backup_{}_{}.tar",
-                                     timestamp.format("%Y%m%d_%H%M%S"), backup_id);
+        let backup_filename = format!(
+            "full_backup_{}_{}.tar",
+            timestamp.format("%Y%m%d_%H%M%S"),
+            backup_id
+        );
         let backup_path = self.config.backup_dir.join(&backup_filename);
 
         // Ensure backup directory exists
@@ -171,7 +175,10 @@ impl BackupService {
         self.repository.store_metadata(&metadata).await?;
 
         // Create backup
-        match self.create_backup_archive(&backup_path, &mut metadata).await {
+        match self
+            .create_backup_archive(&backup_path, &mut metadata)
+            .await
+        {
             Ok(_) => {
                 metadata.status = BackupStatus::Completed;
                 metadata.duration_seconds = Some(start_time.elapsed().as_secs());
@@ -179,8 +186,11 @@ impl BackupService {
                 // Calculate checksum
                 metadata.checksum = self.calculate_file_checksum(&backup_path)?;
 
-                info!("Full backup completed: {} ({} bytes)",
-                      backup_path.display(), metadata.size_bytes);
+                info!(
+                    "Full backup completed: {} ({} bytes)",
+                    backup_path.display(),
+                    metadata.size_bytes
+                );
             }
             Err(e) => {
                 error!("Full backup failed: {}", e);
@@ -211,7 +221,10 @@ impl BackupService {
             return Err(ErpError::validation("backup", "Backup service is disabled"));
         }
 
-        let db_config = self.config.databases.iter()
+        let db_config = self
+            .config
+            .databases
+            .iter()
             .find(|db| db.name == database_name)
             .ok_or_else(|| ErpError::not_found("database", database_name))?;
 
@@ -220,8 +233,11 @@ impl BackupService {
 
         let backup_id = Uuid::new_v4();
         let timestamp = Utc::now();
-        let backup_filename = format!("db_{}_{}.sql",
-                                     database_name, timestamp.format("%Y%m%d_%H%M%S"));
+        let backup_filename = format!(
+            "db_{}_{}.sql",
+            database_name,
+            timestamp.format("%Y%m%d_%H%M%S")
+        );
         let backup_path = self.config.backup_dir.join(&backup_filename);
 
         // Ensure backup directory exists
@@ -255,8 +271,11 @@ impl BackupService {
                 metadata.duration_seconds = Some(start_time.elapsed().as_secs());
                 metadata.checksum = self.calculate_file_checksum(&backup_path)?;
 
-                info!("Database backup completed: {} ({} bytes)",
-                      backup_path.display(), metadata.size_bytes);
+                info!(
+                    "Database backup completed: {} ({} bytes)",
+                    backup_path.display(),
+                    metadata.size_bytes
+                );
             }
             Err(e) => {
                 error!("Database backup failed: {}", e);
@@ -276,11 +295,17 @@ impl BackupService {
     }
 
     pub async fn restore_backup(&self, options: RestoreOptions) -> ErpResult<()> {
-        let metadata = self.repository.get_metadata(options.backup_id).await?
+        let metadata = self
+            .repository
+            .get_metadata(options.backup_id)
+            .await?
             .ok_or_else(|| ErpError::not_found("backup", &options.backup_id.to_string()))?;
 
         if metadata.status != BackupStatus::Completed && metadata.status != BackupStatus::Verified {
-            return Err(ErpError::validation("backup", "Backup is not in a restorable state"));
+            return Err(ErpError::validation(
+                "backup",
+                "Backup is not in a restorable state",
+            ));
         }
 
         info!("Starting restore from backup: {}", metadata.id);
@@ -298,11 +323,16 @@ impl BackupService {
                 self.restore_database_backup(&metadata, &options).await?;
             }
             BackupType::Incremental => {
-                return Err(ErpError::not_implemented("Incremental restore not yet implemented"));
+                return Err(ErpError::not_implemented(
+                    "Incremental restore not yet implemented",
+                ));
             }
         }
 
-        info!("Restore completed successfully from backup: {}", metadata.id);
+        info!(
+            "Restore completed successfully from backup: {}",
+            metadata.id
+        );
         Ok(())
     }
 
@@ -311,7 +341,10 @@ impl BackupService {
 
         // Check if backup file exists
         if !metadata.file_path.exists() {
-            return Err(ErpError::not_found("backup_file", &metadata.file_path.display().to_string()));
+            return Err(ErpError::not_found(
+                "backup_file",
+                &metadata.file_path.display().to_string(),
+            ));
         }
 
         // Verify file size
@@ -323,7 +356,10 @@ impl BackupService {
         // Verify checksum
         let calculated_checksum = self.calculate_file_checksum(&metadata.file_path)?;
         if calculated_checksum != metadata.checksum {
-            return Err(ErpError::validation("backup", "Checksum verification failed"));
+            return Err(ErpError::validation(
+                "backup",
+                "Checksum verification failed",
+            ));
         }
 
         // Update metadata to mark as verified
@@ -335,12 +371,18 @@ impl BackupService {
         Ok(())
     }
 
-    pub async fn list_backups(&self, backup_type: Option<BackupType>) -> ErpResult<Vec<BackupMetadata>> {
+    pub async fn list_backups(
+        &self,
+        backup_type: Option<BackupType>,
+    ) -> ErpResult<Vec<BackupMetadata>> {
         self.repository.list_backups(backup_type).await
     }
 
     pub async fn delete_backup(&self, backup_id: Uuid) -> ErpResult<()> {
-        let metadata = self.repository.get_metadata(backup_id).await?
+        let metadata = self
+            .repository
+            .get_metadata(backup_id)
+            .await?
             .ok_or_else(|| ErpError::not_found("backup", &backup_id.to_string()))?;
 
         // Delete backup file
@@ -366,7 +408,10 @@ impl BackupService {
     pub async fn cleanup_old_backups(&self) -> ErpResult<u64> {
         let cutoff_date = Utc::now() - Duration::days(self.config.retention_days);
 
-        let old_backups = self.repository.list_backups(None).await?
+        let old_backups = self
+            .repository
+            .list_backups(None)
+            .await?
             .into_iter()
             .filter(|backup| backup.timestamp < cutoff_date)
             .collect::<Vec<_>>();
@@ -388,7 +433,11 @@ impl BackupService {
         Ok(deleted_count)
     }
 
-    async fn create_backup_archive(&self, backup_path: &Path, metadata: &mut BackupMetadata) -> ErpResult<()> {
+    async fn create_backup_archive(
+        &self,
+        backup_path: &Path,
+        metadata: &mut BackupMetadata,
+    ) -> ErpResult<()> {
         let mut file_count = 0;
 
         // Create tar archive
@@ -413,7 +462,8 @@ impl BackupService {
         // Add files and directories
         for file_path in &self.config.file_paths {
             if file_path.is_file() {
-                let file_name = file_path.file_name()
+                let file_name = file_path
+                    .file_name()
                     .ok_or_else(|| ErpError::validation("file_path", "Invalid file name"))?
                     .to_string_lossy()
                     .into_owned();
@@ -436,33 +486,38 @@ impl BackupService {
         Ok(())
     }
 
-    async fn backup_database(&self, db_config: &DatabaseConfig, output_path: &Path) -> ErpResult<u64> {
+    async fn backup_database(
+        &self,
+        db_config: &DatabaseConfig,
+        output_path: &Path,
+    ) -> ErpResult<u64> {
         match db_config.db_type {
-            DatabaseType::PostgreSQL => {
-                self.backup_postgresql(db_config, output_path).await
-            }
-            DatabaseType::MySQL => {
-                self.backup_mysql(db_config, output_path).await
-            }
-            DatabaseType::SQLite => {
-                self.backup_sqlite(db_config, output_path).await
-            }
-            DatabaseType::Redis => {
-                self.backup_redis(db_config, output_path).await
-            }
+            DatabaseType::PostgreSQL => self.backup_postgresql(db_config, output_path).await,
+            DatabaseType::MySQL => self.backup_mysql(db_config, output_path).await,
+            DatabaseType::SQLite => self.backup_sqlite(db_config, output_path).await,
+            DatabaseType::Redis => self.backup_redis(db_config, output_path).await,
         }
     }
 
-    async fn backup_postgresql(&self, db_config: &DatabaseConfig, output_path: &Path) -> ErpResult<u64> {
+    async fn backup_postgresql(
+        &self,
+        db_config: &DatabaseConfig,
+        output_path: &Path,
+    ) -> ErpResult<u64> {
         let mut cmd = Command::new("pg_dump");
 
-        cmd.arg("-h").arg(&db_config.host)
-           .arg("-p").arg(db_config.port.to_string())
-           .arg("-U").arg(&db_config.username)
-           .arg("-d").arg(&db_config.database_name)
-           .arg("-f").arg(output_path)
-           .arg("--verbose")
-           .arg("--no-password");
+        cmd.arg("-h")
+            .arg(&db_config.host)
+            .arg("-p")
+            .arg(db_config.port.to_string())
+            .arg("-U")
+            .arg(&db_config.username)
+            .arg("-d")
+            .arg(&db_config.database_name)
+            .arg("-f")
+            .arg(output_path)
+            .arg("--verbose")
+            .arg("--no-password");
 
         if let Some(ref password) = db_config.password {
             cmd.env("PGPASSWORD", password);
@@ -483,9 +538,12 @@ impl BackupService {
     async fn backup_mysql(&self, db_config: &DatabaseConfig, output_path: &Path) -> ErpResult<u64> {
         let mut cmd = Command::new("mysqldump");
 
-        cmd.arg("-h").arg(&db_config.host)
-           .arg("-P").arg(db_config.port.to_string())
-           .arg("-u").arg(&db_config.username);
+        cmd.arg("-h")
+            .arg(&db_config.host)
+            .arg("-P")
+            .arg(db_config.port.to_string())
+            .arg("-u")
+            .arg(&db_config.username);
 
         if let Some(ref password) = db_config.password {
             cmd.arg(format!("-p{}", password));
@@ -506,15 +564,23 @@ impl BackupService {
         Ok(size)
     }
 
-    async fn backup_sqlite(&self, db_config: &DatabaseConfig, output_path: &Path) -> ErpResult<u64> {
-        let connection_string = db_config.connection_string
+    async fn backup_sqlite(
+        &self,
+        db_config: &DatabaseConfig,
+        output_path: &Path,
+    ) -> ErpResult<u64> {
+        let connection_string = db_config
+            .connection_string
             .as_ref()
             .ok_or_else(|| ErpError::validation("sqlite", "Connection string required"))?;
 
         let db_path = Path::new(connection_string);
 
         if !db_path.exists() {
-            return Err(ErpError::not_found("sqlite_database", &db_path.display().to_string()));
+            return Err(ErpError::not_found(
+                "sqlite_database",
+                &db_path.display().to_string(),
+            ));
         }
 
         // For SQLite, we can simply copy the database file
@@ -524,19 +590,30 @@ impl BackupService {
         Ok(size)
     }
 
-    async fn backup_redis(&self, _db_config: &DatabaseConfig, output_path: &Path) -> ErpResult<u64> {
+    async fn backup_redis(
+        &self,
+        _db_config: &DatabaseConfig,
+        output_path: &Path,
+    ) -> ErpResult<u64> {
         // Redis backup would typically use BGSAVE or similar
         // For now, we'll create a placeholder
-        let backup_content = "# Redis backup placeholder\n# Implement using redis-cli or direct connection\n";
+        let backup_content =
+            "# Redis backup placeholder\n# Implement using redis-cli or direct connection\n";
         fs::write(output_path, backup_content)?;
         let size = backup_content.len() as u64;
         debug!("Redis backup placeholder created: {} bytes", size);
         Ok(size)
     }
 
-    async fn restore_file_backup(&self, metadata: &BackupMetadata, options: &RestoreOptions) -> ErpResult<()> {
+    async fn restore_file_backup(
+        &self,
+        metadata: &BackupMetadata,
+        options: &RestoreOptions,
+    ) -> ErpResult<()> {
         let default_restore_dir = PathBuf::from("./restore");
-        let target_dir = options.target_directory.as_ref()
+        let target_dir = options
+            .target_directory
+            .as_ref()
             .unwrap_or(&default_restore_dir);
 
         fs::create_dir_all(target_dir)?;
@@ -566,40 +643,57 @@ impl BackupService {
         Ok(())
     }
 
-    async fn restore_database_backup(&self, metadata: &BackupMetadata, options: &RestoreOptions) -> ErpResult<()> {
+    async fn restore_database_backup(
+        &self,
+        metadata: &BackupMetadata,
+        options: &RestoreOptions,
+    ) -> ErpResult<()> {
         if metadata.databases.is_empty() {
-            return Err(ErpError::validation("backup", "No database information in backup"));
+            return Err(ErpError::validation(
+                "backup",
+                "No database information in backup",
+            ));
         }
 
         let database_name = &metadata.databases[0];
-        let db_config = self.config.databases.iter()
+        let db_config = self
+            .config
+            .databases
+            .iter()
             .find(|db| db.name == *database_name)
             .ok_or_else(|| ErpError::not_found("database", database_name))?;
 
         match db_config.db_type {
             DatabaseType::PostgreSQL => {
-                self.restore_postgresql(db_config, &metadata.file_path).await
+                self.restore_postgresql(db_config, &metadata.file_path)
+                    .await
             }
-            DatabaseType::MySQL => {
-                self.restore_mysql(db_config, &metadata.file_path).await
-            }
+            DatabaseType::MySQL => self.restore_mysql(db_config, &metadata.file_path).await,
             DatabaseType::SQLite => {
-                self.restore_sqlite(db_config, &metadata.file_path, options).await
+                self.restore_sqlite(db_config, &metadata.file_path, options)
+                    .await
             }
-            DatabaseType::Redis => {
-                self.restore_redis(db_config, &metadata.file_path).await
-            }
+            DatabaseType::Redis => self.restore_redis(db_config, &metadata.file_path).await,
         }
     }
 
-    async fn restore_postgresql(&self, db_config: &DatabaseConfig, backup_path: &Path) -> ErpResult<()> {
+    async fn restore_postgresql(
+        &self,
+        db_config: &DatabaseConfig,
+        backup_path: &Path,
+    ) -> ErpResult<()> {
         let mut cmd = Command::new("psql");
 
-        cmd.arg("-h").arg(&db_config.host)
-           .arg("-p").arg(db_config.port.to_string())
-           .arg("-U").arg(&db_config.username)
-           .arg("-d").arg(&db_config.database_name)
-           .arg("-f").arg(backup_path);
+        cmd.arg("-h")
+            .arg(&db_config.host)
+            .arg("-p")
+            .arg(db_config.port.to_string())
+            .arg("-U")
+            .arg(&db_config.username)
+            .arg("-d")
+            .arg(&db_config.database_name)
+            .arg("-f")
+            .arg(backup_path);
 
         if let Some(ref password) = db_config.password {
             cmd.env("PGPASSWORD", password);
@@ -609,7 +703,10 @@ impl BackupService {
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(format!("psql restore failed: {}", error)));
+            return Err(ErpError::internal(format!(
+                "psql restore failed: {}",
+                error
+            )));
         }
 
         debug!("PostgreSQL restore completed");
@@ -619,9 +716,12 @@ impl BackupService {
     async fn restore_mysql(&self, db_config: &DatabaseConfig, backup_path: &Path) -> ErpResult<()> {
         let mut cmd = Command::new("mysql");
 
-        cmd.arg("-h").arg(&db_config.host)
-           .arg("-P").arg(db_config.port.to_string())
-           .arg("-u").arg(&db_config.username);
+        cmd.arg("-h")
+            .arg(&db_config.host)
+            .arg("-P")
+            .arg(db_config.port.to_string())
+            .arg("-u")
+            .arg(&db_config.username);
 
         if let Some(ref password) = db_config.password {
             cmd.arg(format!("-p{}", password));
@@ -631,10 +731,11 @@ impl BackupService {
 
         let backup_content = fs::read_to_string(backup_path)?;
 
-        let mut child = cmd.stdin(Stdio::piped())
-                           .stdout(Stdio::piped())
-                           .stderr(Stdio::piped())
-                           .spawn()?;
+        let mut child = cmd
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()?;
 
         if let Some(ref mut stdin) = child.stdin {
             stdin.write_all(backup_content.as_bytes())?;
@@ -644,24 +745,37 @@ impl BackupService {
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(format!("mysql restore failed: {}", error)));
+            return Err(ErpError::internal(format!(
+                "mysql restore failed: {}",
+                error
+            )));
         }
 
         debug!("MySQL restore completed");
         Ok(())
     }
 
-    async fn restore_sqlite(&self, db_config: &DatabaseConfig, backup_path: &Path, options: &RestoreOptions) -> ErpResult<()> {
+    async fn restore_sqlite(
+        &self,
+        db_config: &DatabaseConfig,
+        backup_path: &Path,
+        options: &RestoreOptions,
+    ) -> ErpResult<()> {
         let target_path = if let Some(ref target) = options.target_directory {
             target.join(format!("{}.db", db_config.database_name))
         } else {
-            let connection_string = db_config.connection_string.as_ref()
+            let connection_string = db_config
+                .connection_string
+                .as_ref()
                 .ok_or_else(|| ErpError::validation("sqlite", "Connection string required"))?;
             Path::new(connection_string).to_path_buf()
         };
 
         if target_path.exists() && !options.force_overwrite {
-            return Err(ErpError::validation("restore", "Target database exists and force_overwrite is false"));
+            return Err(ErpError::validation(
+                "restore",
+                "Target database exists and force_overwrite is false",
+            ));
         }
 
         fs::copy(backup_path, &target_path)?;
@@ -669,7 +783,11 @@ impl BackupService {
         Ok(())
     }
 
-    async fn restore_redis(&self, _db_config: &DatabaseConfig, _backup_path: &Path) -> ErpResult<()> {
+    async fn restore_redis(
+        &self,
+        _db_config: &DatabaseConfig,
+        _backup_path: &Path,
+    ) -> ErpResult<()> {
         // Redis restore would typically use redis-cli or direct connection
         debug!("Redis restore - placeholder implementation");
         Ok(())
@@ -679,14 +797,22 @@ impl BackupService {
         if let Some(ref remote_config) = self.config.remote_storage_config {
             info!("Uploading backup to remote storage: {}", metadata.id);
 
-            let remote_path = format!("{}/backup_{}.tar",
-                                     metadata.timestamp.format("%Y/%m/%d"),
-                                     metadata.id);
+            let remote_path = format!(
+                "{}/backup_{}.tar",
+                metadata.timestamp.format("%Y/%m/%d"),
+                metadata.id
+            );
 
             // Placeholder for actual remote storage implementation
             // This would typically use AWS S3, Azure Blob, or similar
-            debug!("Remote upload placeholder for provider: {}", remote_config.provider);
-            debug!("Would upload to: {}/{}", remote_config.bucket_name, remote_path);
+            debug!(
+                "Remote upload placeholder for provider: {}",
+                remote_config.provider
+            );
+            debug!(
+                "Would upload to: {}/{}",
+                remote_config.bucket_name, remote_path
+            );
 
             // Update metadata with remote path
             let mut updated_metadata = metadata.clone();
@@ -704,7 +830,7 @@ impl BackupService {
     }
 
     fn calculate_file_checksum(&self, file_path: &Path) -> ErpResult<String> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
 
         let mut file = File::open(file_path)?;
         let mut hasher = Sha256::new();
@@ -766,10 +892,17 @@ impl BackupRepository for MockBackupRepository {
         Ok(backups.iter().find(|b| b.id == backup_id).cloned())
     }
 
-    async fn list_backups(&self, backup_type: Option<BackupType>) -> ErpResult<Vec<BackupMetadata>> {
+    async fn list_backups(
+        &self,
+        backup_type: Option<BackupType>,
+    ) -> ErpResult<Vec<BackupMetadata>> {
         let backups = self.backups.lock().unwrap();
         if let Some(filter_type) = backup_type {
-            Ok(backups.iter().filter(|b| b.backup_type == filter_type).cloned().collect())
+            Ok(backups
+                .iter()
+                .filter(|b| b.backup_type == filter_type)
+                .cloned()
+                .collect())
         } else {
             Ok(backups.clone())
         }
@@ -865,7 +998,10 @@ mod tests {
         assert_eq!(retrieved.unwrap().id, metadata.id);
 
         // List backups
-        let backups = repository.list_backups(Some(BackupType::Database)).await.unwrap();
+        let backups = repository
+            .list_backups(Some(BackupType::Database))
+            .await
+            .unwrap();
         assert_eq!(backups.len(), 1);
 
         // Delete metadata

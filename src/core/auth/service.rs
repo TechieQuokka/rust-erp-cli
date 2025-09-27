@@ -531,6 +531,12 @@ impl MockUserRepository {
     }
 }
 
+impl Default for MockUserRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait::async_trait]
 impl UserRepository for MockUserRepository {
     async fn find_by_username(&self, username: &str) -> ErpResult<Option<User>> {

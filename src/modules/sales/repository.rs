@@ -601,6 +601,12 @@ impl MockSalesRepository {
     }
 }
 
+impl Default for MockSalesRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[async_trait]
 impl SalesRepository for MockSalesRepository {
     async fn create_order(&self, order: &SalesOrder) -> ErpResult<()> {
@@ -728,8 +734,8 @@ impl SalesRepository for MockSalesRepository {
             .values()
             .filter(|order| {
                 let matches_query = order.order_number.contains(query)
-                    || order.notes.as_ref().map_or(false, |n| n.contains(query));
-                let matches_status = status.map_or(true, |s| order.status == s);
+                    || order.notes.as_ref().is_some_and(|n| n.contains(query));
+                let matches_status = status.is_none_or(|s| order.status == s);
                 matches_query && matches_status
             })
             .cloned()

@@ -9,7 +9,12 @@ use tracing::{debug, warn};
 #[async_trait::async_trait]
 pub trait RateLimiterTrait: Send + Sync {
     async fn allow_request(&self, identifier: &str) -> ErpResult<bool>;
-    async fn check_rate_limit(&self, identifier: &str, limit: u64, window_seconds: u64) -> ErpResult<bool>;
+    async fn check_rate_limit(
+        &self,
+        identifier: &str,
+        limit: u64,
+        window_seconds: u64,
+    ) -> ErpResult<bool>;
     async fn reset_limit(&self, identifier: &str) -> ErpResult<()>;
     async fn get_remaining_requests(&self, identifier: &str) -> ErpResult<RemainingRequests>;
 }
@@ -70,7 +75,10 @@ impl RequestWindow {
     }
 
     fn count_requests_in_window(&self, cutoff: DateTime<Utc>) -> usize {
-        self.requests.iter().filter(|&&timestamp| timestamp > cutoff).count()
+        self.requests
+            .iter()
+            .filter(|&&timestamp| timestamp > cutoff)
+            .count()
     }
 }
 
@@ -102,7 +110,9 @@ impl RateLimiter {
         let mut windows = self.windows.lock().await;
 
         // Get or create window for this identifier
-        let window = windows.entry(identifier.to_string()).or_insert_with(RequestWindow::new);
+        let window = windows
+            .entry(identifier.to_string())
+            .or_insert_with(RequestWindow::new);
 
         // Clean up old requests
         let minute_cutoff = now - Duration::minutes(1);
@@ -120,27 +130,41 @@ impl RateLimiter {
         let burst_cutoff = now - Duration::seconds(10);
         let burst_requests = window.count_requests_in_window(burst_cutoff);
 
-        debug!("Rate limit check for {}: minute={}, hour={}, day={}, burst={}",
-               identifier, requests_last_minute, requests_last_hour, requests_last_day, burst_requests);
+        debug!(
+            "Rate limit check for {}: minute={}, hour={}, day={}, burst={}",
+            identifier, requests_last_minute, requests_last_hour, requests_last_day, burst_requests
+        );
 
         // Apply limits
         if burst_requests >= self.config.burst_size as usize {
-            warn!("Burst limit exceeded for {}: {} requests in last 10 seconds", identifier, burst_requests);
+            warn!(
+                "Burst limit exceeded for {}: {} requests in last 10 seconds",
+                identifier, burst_requests
+            );
             return Ok(false);
         }
 
         if requests_last_minute >= self.config.requests_per_minute as usize {
-            warn!("Minute limit exceeded for {}: {} requests", identifier, requests_last_minute);
+            warn!(
+                "Minute limit exceeded for {}: {} requests",
+                identifier, requests_last_minute
+            );
             return Ok(false);
         }
 
         if requests_last_hour >= self.config.requests_per_hour as usize {
-            warn!("Hour limit exceeded for {}: {} requests", identifier, requests_last_hour);
+            warn!(
+                "Hour limit exceeded for {}: {} requests",
+                identifier, requests_last_hour
+            );
             return Ok(false);
         }
 
         if requests_last_day >= self.config.requests_per_day as usize {
-            warn!("Day limit exceeded for {}: {} requests", identifier, requests_last_day);
+            warn!(
+                "Day limit exceeded for {}: {} requests",
+                identifier, requests_last_day
+            );
             return Ok(false);
         }
 
@@ -157,7 +181,12 @@ impl RateLimiter {
         Ok(true)
     }
 
-    pub async fn check_rate_limit(&self, identifier: &str, limit: u64, window_seconds: u64) -> ErpResult<bool> {
+    pub async fn check_rate_limit(
+        &self,
+        identifier: &str,
+        limit: u64,
+        window_seconds: u64,
+    ) -> ErpResult<bool> {
         if !self.config.enabled {
             return Ok(true);
         }
@@ -170,8 +199,10 @@ impl RateLimiter {
             let requests_in_window = window.count_requests_in_window(cutoff);
 
             if requests_in_window >= limit as usize {
-                warn!("Custom rate limit exceeded for {}: {} requests in {} seconds",
-                      identifier, requests_in_window, window_seconds);
+                warn!(
+                    "Custom rate limit exceeded for {}: {} requests in {} seconds",
+                    identifier, requests_in_window, window_seconds
+                );
                 return Ok(false);
             }
         }
@@ -200,9 +231,18 @@ impl RateLimiter {
             let requests_last_day = window.count_requests_in_window(day_cutoff);
 
             Ok(RemainingRequests {
-                per_minute: self.config.requests_per_minute.saturating_sub(requests_last_minute as u64),
-                per_hour: self.config.requests_per_hour.saturating_sub(requests_last_hour as u64),
-                per_day: self.config.requests_per_day.saturating_sub(requests_last_day as u64),
+                per_minute: self
+                    .config
+                    .requests_per_minute
+                    .saturating_sub(requests_last_minute as u64),
+                per_hour: self
+                    .config
+                    .requests_per_hour
+                    .saturating_sub(requests_last_hour as u64),
+                per_day: self
+                    .config
+                    .requests_per_day
+                    .saturating_sub(requests_last_day as u64),
                 reset_time_minute: now + Duration::minutes(1),
                 reset_time_hour: now + Duration::hours(1),
                 reset_time_day: now + Duration::days(1),
@@ -227,7 +267,8 @@ impl RateLimiter {
 
         let now = Utc::now();
         let hour_cutoff = now - Duration::hours(1);
-        let active_clients = windows.values()
+        let active_clients = windows
+            .values()
             .filter(|w| w.last_request > hour_cutoff)
             .count();
 
@@ -243,7 +284,9 @@ impl RateLimiter {
         let mut last_cleanup = self.last_cleanup.lock().await;
         let now = Utc::now();
 
-        if now.signed_duration_since(*last_cleanup).num_minutes() >= self.config.cleanup_interval_minutes as i64 {
+        if now.signed_duration_since(*last_cleanup).num_minutes()
+            >= self.config.cleanup_interval_minutes as i64
+        {
             *last_cleanup = now;
             drop(last_cleanup); // Release the lock before the cleanup
 
@@ -291,8 +334,14 @@ impl RateLimiterTrait for RateLimiter {
         self.allow_request(identifier).await
     }
 
-    async fn check_rate_limit(&self, identifier: &str, limit: u64, window_seconds: u64) -> ErpResult<bool> {
-        self.check_rate_limit(identifier, limit, window_seconds).await
+    async fn check_rate_limit(
+        &self,
+        identifier: &str,
+        limit: u64,
+        window_seconds: u64,
+    ) -> ErpResult<bool> {
+        self.check_rate_limit(identifier, limit, window_seconds)
+            .await
     }
 
     async fn reset_limit(&self, identifier: &str) -> ErpResult<()> {
@@ -342,7 +391,12 @@ impl MockRateLimiter {
         Ok(self.allow_requests)
     }
 
-    pub async fn check_rate_limit(&self, _identifier: &str, _limit: u64, _window_seconds: u64) -> ErpResult<bool> {
+    pub async fn check_rate_limit(
+        &self,
+        _identifier: &str,
+        _limit: u64,
+        _window_seconds: u64,
+    ) -> ErpResult<bool> {
         Ok(self.allow_requests)
     }
 
@@ -368,8 +422,14 @@ impl RateLimiterTrait for MockRateLimiter {
         self.allow_request(identifier).await
     }
 
-    async fn check_rate_limit(&self, identifier: &str, limit: u64, window_seconds: u64) -> ErpResult<bool> {
-        self.check_rate_limit(identifier, limit, window_seconds).await
+    async fn check_rate_limit(
+        &self,
+        identifier: &str,
+        limit: u64,
+        window_seconds: u64,
+    ) -> ErpResult<bool> {
+        self.check_rate_limit(identifier, limit, window_seconds)
+            .await
     }
 
     async fn reset_limit(&self, identifier: &str) -> ErpResult<()> {
@@ -540,7 +600,10 @@ mod tests {
         let limiter = RateLimiter::new(config);
 
         // Initial remaining requests
-        let remaining = limiter.get_remaining_requests("remaining_test").await.unwrap();
+        let remaining = limiter
+            .get_remaining_requests("remaining_test")
+            .await
+            .unwrap();
         assert_eq!(remaining.per_minute, 10);
         assert_eq!(remaining.per_hour, 100);
         assert_eq!(remaining.per_day, 1000);
@@ -550,7 +613,10 @@ mod tests {
             limiter.allow_request("remaining_test").await.unwrap();
         }
 
-        let remaining = limiter.get_remaining_requests("remaining_test").await.unwrap();
+        let remaining = limiter
+            .get_remaining_requests("remaining_test")
+            .await
+            .unwrap();
         assert_eq!(remaining.per_minute, 7);
         assert_eq!(remaining.per_hour, 97);
         assert_eq!(remaining.per_day, 997);
@@ -602,11 +668,17 @@ mod tests {
         }
 
         // Check custom limit (should pass - 5 requests in 60 seconds is under limit of 10)
-        let allowed = limiter.check_rate_limit("custom_test", 10, 60).await.unwrap();
+        let allowed = limiter
+            .check_rate_limit("custom_test", 10, 60)
+            .await
+            .unwrap();
         assert!(allowed);
 
         // Check stricter custom limit (should fail - 5 requests exceeds limit of 3)
-        let allowed = limiter.check_rate_limit("custom_test", 3, 60).await.unwrap();
+        let allowed = limiter
+            .check_rate_limit("custom_test", 3, 60)
+            .await
+            .unwrap();
         assert!(!allowed);
     }
 
@@ -617,8 +689,12 @@ mod tests {
         let lenient = create_rate_limiter(RateLimitStrategy::Lenient);
         let disabled = create_rate_limiter(RateLimitStrategy::Disabled);
 
-        assert!(strict.get_config().requests_per_minute < moderate.get_config().requests_per_minute);
-        assert!(moderate.get_config().requests_per_minute < lenient.get_config().requests_per_minute);
+        assert!(
+            strict.get_config().requests_per_minute < moderate.get_config().requests_per_minute
+        );
+        assert!(
+            moderate.get_config().requests_per_minute < lenient.get_config().requests_per_minute
+        );
         assert!(!disabled.is_enabled());
         assert!(strict.is_enabled());
     }

@@ -125,10 +125,7 @@ impl ErpError {
 
     /// IO 에러 생성 (helper method)
     pub fn io<T: Into<String>>(message: T) -> Self {
-        Self::Io(std::io::Error::new(
-            std::io::ErrorKind::Other,
-            message.into(),
-        ))
+        Self::Io(std::io::Error::other(message.into()))
     }
 
     /// 직렬화 에러 생성

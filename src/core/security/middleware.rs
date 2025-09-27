@@ -41,7 +41,11 @@ impl SecurityContext {
         self
     }
 
-    pub fn with_client_info(mut self, ip_address: Option<String>, user_agent: Option<String>) -> Self {
+    pub fn with_client_info(
+        mut self,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
         self.ip_address = ip_address;
         self.user_agent = user_agent;
         self
@@ -148,8 +152,7 @@ impl SecurityMiddleware {
         user_agent: Option<String>,
         session_id: Option<String>,
     ) -> ErpResult<SecurityContext> {
-        let mut context = SecurityContext::new()
-            .with_client_info(ip_address.clone(), user_agent);
+        let mut context = SecurityContext::new().with_client_info(ip_address.clone(), user_agent);
 
         if let Some(sid) = session_id {
             context = context.with_session(sid);
@@ -183,8 +186,15 @@ impl SecurityMiddleware {
             if let Some(ref rate_limit) = rule.rate_limit {
                 if let Some(ref ip) = ip_address {
                     let key = format!("{}:{}", endpoint, ip);
-                    if !self.rate_limiter.check_rate_limit(&key, rate_limit.requests_per_minute as u64, 60).await? {
-                        return Err(ErpError::validation("rate_limit", "endpoint rate limit exceeded"));
+                    if !self
+                        .rate_limiter
+                        .check_rate_limit(&key, rate_limit.requests_per_minute as u64, 60)
+                        .await?
+                    {
+                        return Err(ErpError::validation(
+                            "rate_limit",
+                            "endpoint rate limit exceeded",
+                        ));
                     }
                 }
             }
@@ -195,11 +205,16 @@ impl SecurityMiddleware {
             match self.auth_service.get_authenticated_user(token_str).await {
                 Ok(user) => {
                     context = context.with_user(user);
-                    info!("User authenticated: {}", context.username().unwrap_or("unknown"));
+                    info!(
+                        "User authenticated: {}",
+                        context.username().unwrap_or("unknown")
+                    );
                 }
                 Err(e) => {
                     warn!("Authentication failed: {}", e);
-                    return Err(ErpError::Authentication("Invalid or expired token".to_string()));
+                    return Err(ErpError::Authentication(
+                        "Invalid or expired token".to_string(),
+                    ));
                 }
             }
         }
@@ -208,15 +223,23 @@ impl SecurityMiddleware {
         if let Some(rule) = self.rules.get(endpoint) {
             // Check if authentication is required
             if rule.require_session && !context.is_authenticated() {
-                return Err(ErpError::Authentication("Authentication required".to_string()));
+                return Err(ErpError::Authentication(
+                    "Authentication required".to_string(),
+                ));
             }
 
             // Check permissions
             for permission in &rule.required_permissions {
                 if !context.has_permission(permission) {
-                    warn!("User {} lacks permission: {}",
-                          context.username().unwrap_or("anonymous"), permission);
-                    return Err(ErpError::forbidden(&format!("Missing permission: {}", permission)));
+                    warn!(
+                        "User {} lacks permission: {}",
+                        context.username().unwrap_or("anonymous"),
+                        permission
+                    );
+                    return Err(ErpError::forbidden(&format!(
+                        "Missing permission: {}",
+                        permission
+                    )));
                 }
             }
 
@@ -237,9 +260,16 @@ impl SecurityMiddleware {
         Ok(context)
     }
 
-    pub async fn validate_permission(&self, context: &SecurityContext, permission: &str) -> ErpResult<()> {
+    pub async fn validate_permission(
+        &self,
+        context: &SecurityContext,
+        permission: &str,
+    ) -> ErpResult<()> {
         if !context.has_permission(permission) {
-            return Err(ErpError::forbidden(&format!("Missing permission: {}", permission)));
+            return Err(ErpError::forbidden(&format!(
+                "Missing permission: {}",
+                permission
+            )));
         }
         Ok(())
     }
@@ -267,21 +297,30 @@ impl SecurityMiddleware {
             headers.insert("X-Content-Type-Options".to_string(), "nosniff".to_string());
             headers.insert("X-Frame-Options".to_string(), "DENY".to_string());
             headers.insert("X-XSS-Protection".to_string(), "1; mode=block".to_string());
-            headers.insert("Referrer-Policy".to_string(), "strict-origin-when-cross-origin".to_string());
+            headers.insert(
+                "Referrer-Policy".to_string(),
+                "strict-origin-when-cross-origin".to_string(),
+            );
 
             if self.config.require_https {
-                headers.insert("Strict-Transport-Security".to_string(),
-                             "max-age=31536000; includeSubDomains".to_string());
+                headers.insert(
+                    "Strict-Transport-Security".to_string(),
+                    "max-age=31536000; includeSubDomains".to_string(),
+                );
             }
         }
 
         if self.config.cors_enabled {
             let allowed_origins = self.config.allowed_origins.join(", ");
             headers.insert("Access-Control-Allow-Origin".to_string(), allowed_origins);
-            headers.insert("Access-Control-Allow-Methods".to_string(),
-                         "GET, POST, PUT, DELETE, OPTIONS".to_string());
-            headers.insert("Access-Control-Allow-Headers".to_string(),
-                         "Authorization, Content-Type, X-Requested-With".to_string());
+            headers.insert(
+                "Access-Control-Allow-Methods".to_string(),
+                "GET, POST, PUT, DELETE, OPTIONS".to_string(),
+            );
+            headers.insert(
+                "Access-Control-Allow-Headers".to_string(),
+                "Authorization, Content-Type, X-Requested-With".to_string(),
+            );
         }
 
         headers
@@ -355,9 +394,11 @@ impl SecurityMiddlewareBuilder {
     }
 
     pub fn build(self) -> ErpResult<SecurityMiddleware> {
-        let auth_service = self.auth_service
+        let auth_service = self
+            .auth_service
             .ok_or_else(|| ErpError::internal("Auth service is required"))?;
-        let rate_limiter = self.rate_limiter
+        let rate_limiter = self
+            .rate_limiter
             .ok_or_else(|| ErpError::internal("Rate limiter is required"))?;
 
         let mut middleware = SecurityMiddleware::new(auth_service, rate_limiter, self.config);
@@ -412,7 +453,10 @@ mod tests {
     #[tokio::test]
     async fn test_security_context_creation() {
         let context = SecurityContext::new()
-            .with_client_info(Some("127.0.0.1".to_string()), Some("test-agent".to_string()))
+            .with_client_info(
+                Some("127.0.0.1".to_string()),
+                Some("test-agent".to_string()),
+            )
             .with_session("session123".to_string());
 
         assert!(!context.is_authenticated());
@@ -446,13 +490,9 @@ mod tests {
     async fn test_middleware_without_authentication() {
         let middleware = create_test_middleware();
 
-        let result = middleware.process_request(
-            "/public",
-            None,
-            Some("127.0.0.1".to_string()),
-            None,
-            None,
-        ).await;
+        let result = middleware
+            .process_request("/public", None, Some("127.0.0.1".to_string()), None, None)
+            .await;
 
         assert!(result.is_ok());
         let context = result.unwrap();
@@ -494,7 +534,10 @@ mod tests {
         assert!(headers.contains_key("X-Frame-Options"));
         assert!(headers.contains_key("Strict-Transport-Security"));
         assert!(headers.contains_key("Access-Control-Allow-Origin"));
-        assert_eq!(headers.get("X-Content-Type-Options"), Some(&"nosniff".to_string()));
+        assert_eq!(
+            headers.get("X-Content-Type-Options"),
+            Some(&"nosniff".to_string())
+        );
     }
 
     #[tokio::test]

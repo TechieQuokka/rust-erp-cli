@@ -80,7 +80,11 @@ impl AuditEvent {
         self
     }
 
-    pub fn with_client_info(mut self, ip_address: Option<String>, user_agent: Option<String>) -> Self {
+    pub fn with_client_info(
+        mut self,
+        ip_address: Option<String>,
+        user_agent: Option<String>,
+    ) -> Self {
         self.ip_address = ip_address;
         self.user_agent = user_agent;
         self
@@ -176,7 +180,10 @@ impl AuditService {
 
         // Check rate limiting
         if !self.check_rate_limit(&event).await? {
-            warn!("Audit event rate limit exceeded for action: {:?}", event.action);
+            warn!(
+                "Audit event rate limit exceeded for action: {:?}",
+                event.action
+            );
             return Ok(());
         }
 
@@ -189,11 +196,19 @@ impl AuditService {
             return Err(e);
         }
 
-        info!("Audit event logged: {:?} for user: {:?}", event.action, event.username);
+        info!(
+            "Audit event logged: {:?} for user: {:?}",
+            event.action, event.username
+        );
         Ok(())
     }
 
-    pub async fn log_login_success(&self, user_id: Uuid, username: String, ip_address: Option<String>) -> ErpResult<()> {
+    pub async fn log_login_success(
+        &self,
+        user_id: Uuid,
+        username: String,
+        ip_address: Option<String>,
+    ) -> ErpResult<()> {
         let event = AuditEvent::new(AuditAction::Login, AuditSeverity::Low)
             .with_user(user_id, username)
             .with_client_info(ip_address, None);
@@ -201,7 +216,12 @@ impl AuditService {
         self.log_event(event).await
     }
 
-    pub async fn log_login_failure(&self, username: String, ip_address: Option<String>, reason: String) -> ErpResult<()> {
+    pub async fn log_login_failure(
+        &self,
+        username: String,
+        ip_address: Option<String>,
+        reason: String,
+    ) -> ErpResult<()> {
         let event = AuditEvent::new(AuditAction::LoginFailed, AuditSeverity::Medium)
             .with_client_info(ip_address, None)
             .add_detail("username", username)
@@ -212,13 +232,19 @@ impl AuditService {
     }
 
     pub async fn log_logout(&self, user_id: Uuid, username: String) -> ErpResult<()> {
-        let event = AuditEvent::new(AuditAction::Logout, AuditSeverity::Low)
-            .with_user(user_id, username);
+        let event =
+            AuditEvent::new(AuditAction::Logout, AuditSeverity::Low).with_user(user_id, username);
 
         self.log_event(event).await
     }
 
-    pub async fn log_data_access(&self, user_id: Uuid, username: String, resource: String, resource_id: Option<String>) -> ErpResult<()> {
+    pub async fn log_data_access(
+        &self,
+        user_id: Uuid,
+        username: String,
+        resource: String,
+        resource_id: Option<String>,
+    ) -> ErpResult<()> {
         let event = AuditEvent::new(AuditAction::DataAccessed, AuditSeverity::Low)
             .with_user(user_id, username)
             .with_resource(resource, resource_id);
@@ -226,7 +252,14 @@ impl AuditService {
         self.log_event(event).await
     }
 
-    pub async fn log_data_modification(&self, user_id: Uuid, username: String, resource: String, resource_id: Option<String>, details: HashMap<String, String>) -> ErpResult<()> {
+    pub async fn log_data_modification(
+        &self,
+        user_id: Uuid,
+        username: String,
+        resource: String,
+        resource_id: Option<String>,
+        details: HashMap<String, String>,
+    ) -> ErpResult<()> {
         let event = AuditEvent::new(AuditAction::DataModified, AuditSeverity::Medium)
             .with_user(user_id, username)
             .with_resource(resource, resource_id)
@@ -235,7 +268,13 @@ impl AuditService {
         self.log_event(event).await
     }
 
-    pub async fn log_security_violation(&self, user_id: Option<Uuid>, username: Option<String>, violation_type: String, details: HashMap<String, String>) -> ErpResult<()> {
+    pub async fn log_security_violation(
+        &self,
+        user_id: Option<Uuid>,
+        username: Option<String>,
+        violation_type: String,
+        details: HashMap<String, String>,
+    ) -> ErpResult<()> {
         let mut event = AuditEvent::new(AuditAction::SecurityViolation, AuditSeverity::Critical)
             .with_details(details)
             .add_detail("violation_type", violation_type)
@@ -248,8 +287,19 @@ impl AuditService {
         self.log_event(event).await
     }
 
-    pub async fn log_permission_change(&self, admin_user_id: Uuid, admin_username: String, target_user_id: Uuid, permission: String, granted: bool) -> ErpResult<()> {
-        let action = if granted { AuditAction::PermissionGranted } else { AuditAction::PermissionRevoked };
+    pub async fn log_permission_change(
+        &self,
+        admin_user_id: Uuid,
+        admin_username: String,
+        target_user_id: Uuid,
+        permission: String,
+        granted: bool,
+    ) -> ErpResult<()> {
+        let action = if granted {
+            AuditAction::PermissionGranted
+        } else {
+            AuditAction::PermissionRevoked
+        };
 
         let event = AuditEvent::new(action, AuditSeverity::High)
             .with_user(admin_user_id, admin_username)
@@ -298,7 +348,9 @@ impl AuditService {
     }
 
     pub async fn cleanup_old_events(&self) -> ErpResult<u64> {
-        self.repository.cleanup_old_events(self.config.retention_days).await
+        self.repository
+            .cleanup_old_events(self.config.retention_days)
+            .await
     }
 
     async fn check_rate_limit(&self, _event: &AuditEvent) -> ErpResult<bool> {
@@ -347,7 +399,8 @@ impl AuditRepository for MockAuditRepository {
 
     async fn get_events(&self, filters: AuditFilters) -> ErpResult<Vec<AuditEvent>> {
         let events = self.events.lock().unwrap();
-        let mut filtered: Vec<AuditEvent> = events.iter()
+        let mut filtered: Vec<AuditEvent> = events
+            .iter()
             .filter(|e| {
                 if let Some(user_id) = filters.user_id {
                     if e.user_id != Some(user_id) {
@@ -469,14 +522,19 @@ mod tests {
         let service = AuditService::new(repository, config);
 
         let mut details = HashMap::new();
-        details.insert("attempted_action".to_string(), "access_admin_panel".to_string());
+        details.insert(
+            "attempted_action".to_string(),
+            "access_admin_panel".to_string(),
+        );
 
-        let result = service.log_security_violation(
-            Some(Uuid::new_v4()),
-            Some("hacker".to_string()),
-            "unauthorized_access".to_string(),
-            details
-        ).await;
+        let result = service
+            .log_security_violation(
+                Some(Uuid::new_v4()),
+                Some("hacker".to_string()),
+                "unauthorized_access".to_string(),
+                details,
+            )
+            .await;
 
         assert!(result.is_ok());
     }

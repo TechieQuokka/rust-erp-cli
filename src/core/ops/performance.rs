@@ -118,16 +118,23 @@ pub trait PerformanceRepository: Send + Sync {
     async fn store_aggregated_metrics(&self, metrics: &AggregatedMetrics) -> ErpResult<()>;
     async fn store_system_performance(&self, performance: &SystemPerformance) -> ErpResult<()>;
 
-    async fn get_metrics(&self,
-                        endpoint: Option<&str>,
-                        since: DateTime<Utc>,
-                        limit: Option<usize>) -> ErpResult<Vec<PerformanceMetrics>>;
+    async fn get_metrics(
+        &self,
+        endpoint: Option<&str>,
+        since: DateTime<Utc>,
+        limit: Option<usize>,
+    ) -> ErpResult<Vec<PerformanceMetrics>>;
 
-    async fn get_aggregated_metrics(&self,
-                                   endpoint: Option<&str>,
-                                   since: DateTime<Utc>) -> ErpResult<Vec<AggregatedMetrics>>;
+    async fn get_aggregated_metrics(
+        &self,
+        endpoint: Option<&str>,
+        since: DateTime<Utc>,
+    ) -> ErpResult<Vec<AggregatedMetrics>>;
 
-    async fn get_system_performance(&self, since: DateTime<Utc>) -> ErpResult<Vec<SystemPerformance>>;
+    async fn get_system_performance(
+        &self,
+        since: DateTime<Utc>,
+    ) -> ErpResult<Vec<SystemPerformance>>;
 
     async fn cleanup_old_metrics(&self, before: DateTime<Utc>) -> ErpResult<u64>;
 }
@@ -175,7 +182,14 @@ impl PerformanceMonitor {
         }
     }
 
-    pub async fn start_request(&self, request_id: String, endpoint: String, method: String, user_id: Option<String>, session_id: Option<String>) -> ErpResult<()> {
+    pub async fn start_request(
+        &self,
+        request_id: String,
+        endpoint: String,
+        method: String,
+        user_id: Option<String>,
+        session_id: Option<String>,
+    ) -> ErpResult<()> {
         if !self.config.enabled {
             return Ok(());
         }
@@ -194,12 +208,14 @@ impl PerformanceMonitor {
         Ok(())
     }
 
-    pub async fn end_request(&self,
-                            request_id: String,
-                            status_code: u16,
-                            request_size: u64,
-                            response_size: u64,
-                            error_message: Option<String>) -> ErpResult<()> {
+    pub async fn end_request(
+        &self,
+        request_id: String,
+        status_code: u16,
+        request_size: u64,
+        response_size: u64,
+        error_message: Option<String>,
+    ) -> ErpResult<()> {
         if !self.config.enabled {
             return Ok(());
         }
@@ -231,7 +247,14 @@ impl PerformanceMonitor {
             }
 
             // Update aggregated metrics
-            self.update_aggregated_metrics(&tracker, response_time_ms, status_code, request_size, response_size).await?;
+            self.update_aggregated_metrics(
+                &tracker,
+                response_time_ms,
+                status_code,
+                request_size,
+                response_size,
+            )
+            .await?;
         }
 
         Ok(())
@@ -242,7 +265,9 @@ impl PerformanceMonitor {
             return Ok(());
         }
 
-        self.repository.store_system_performance(&performance).await?;
+        self.repository
+            .store_system_performance(&performance)
+            .await?;
         debug!("System performance metrics stored");
 
         // Check for alerts
@@ -251,9 +276,16 @@ impl PerformanceMonitor {
         Ok(())
     }
 
-    pub async fn get_endpoint_performance(&self, endpoint: &str, hours: i64) -> ErpResult<EndpointPerformanceSummary> {
+    pub async fn get_endpoint_performance(
+        &self,
+        endpoint: &str,
+        hours: i64,
+    ) -> ErpResult<EndpointPerformanceSummary> {
         let since = Utc::now() - Duration::hours(hours);
-        let metrics = self.repository.get_metrics(Some(endpoint), since, None).await?;
+        let metrics = self
+            .repository
+            .get_metrics(Some(endpoint), since, None)
+            .await?;
 
         if metrics.is_empty() {
             return Ok(EndpointPerformanceSummary {
@@ -273,13 +305,17 @@ impl PerformanceMonitor {
         let response_times: Vec<u64> = metrics.iter().map(|m| m.response_time_ms).collect();
         let successful = metrics.iter().filter(|m| m.status_code < 400).count();
         let errors = metrics.len() - successful;
-        let slow_requests = metrics.iter().filter(|m| m.response_time_ms > self.config.slow_query_threshold_ms).count();
+        let slow_requests = metrics
+            .iter()
+            .filter(|m| m.response_time_ms > self.config.slow_query_threshold_ms)
+            .count();
 
         Ok(EndpointPerformanceSummary {
             endpoint: endpoint.to_string(),
             period_hours: hours,
             total_requests: metrics.len(),
-            avg_response_time_ms: response_times.iter().sum::<u64>() as f64 / response_times.len() as f64,
+            avg_response_time_ms: response_times.iter().sum::<u64>() as f64
+                / response_times.len() as f64,
             min_response_time_ms: *response_times.iter().min().unwrap_or(&0),
             max_response_time_ms: *response_times.iter().max().unwrap_or(&0),
             success_rate: (successful as f64 / metrics.len() as f64) * 100.0,
@@ -309,7 +345,10 @@ impl PerformanceMonitor {
 
         let mut endpoint_stats: HashMap<String, Vec<&AggregatedMetrics>> = HashMap::new();
         for metric in &aggregated {
-            endpoint_stats.entry(metric.endpoint.clone()).or_default().push(metric);
+            endpoint_stats
+                .entry(metric.endpoint.clone())
+                .or_default()
+                .push(metric);
         }
 
         let mut total_requests = 0u64;
@@ -321,13 +360,21 @@ impl PerformanceMonitor {
             let older_metrics = metrics.iter().rev().skip(6).take(6).collect::<Vec<_>>();
 
             let recent_avg = if !recent_metrics.is_empty() {
-                recent_metrics.iter().map(|m| m.avg_response_time_ms).sum::<f64>() / recent_metrics.len() as f64
+                recent_metrics
+                    .iter()
+                    .map(|m| m.avg_response_time_ms)
+                    .sum::<f64>()
+                    / recent_metrics.len() as f64
             } else {
                 0.0
             };
 
             let older_avg = if !older_metrics.is_empty() {
-                older_metrics.iter().map(|m| m.avg_response_time_ms).sum::<f64>() / older_metrics.len() as f64
+                older_metrics
+                    .iter()
+                    .map(|m| m.avg_response_time_ms)
+                    .sum::<f64>()
+                    / older_metrics.len() as f64
             } else {
                 recent_avg
             };
@@ -340,18 +387,26 @@ impl PerformanceMonitor {
 
             let endpoint_total_requests: u64 = metrics.iter().map(|m| m.total_requests).sum();
             let endpoint_total_errors: u64 = metrics.iter().map(|m| m.failed_requests).sum();
-            let endpoint_avg_response: f64 = metrics.iter().map(|m| m.avg_response_time_ms * m.total_requests as f64).sum::<f64>() / endpoint_total_requests as f64;
+            let endpoint_avg_response: f64 = metrics
+                .iter()
+                .map(|m| m.avg_response_time_ms * m.total_requests as f64)
+                .sum::<f64>()
+                / endpoint_total_requests as f64;
 
             total_requests += endpoint_total_requests;
             total_response_time += endpoint_avg_response * endpoint_total_requests as f64;
             total_errors += endpoint_total_errors;
 
-            trends.endpoints.insert(endpoint.clone(), EndpointTrend {
-                avg_response_time: endpoint_avg_response,
-                error_rate: (endpoint_total_errors as f64 / endpoint_total_requests as f64) * 100.0,
-                trend_percentage: trend,
-                total_requests: endpoint_total_requests,
-            });
+            trends.endpoints.insert(
+                endpoint.clone(),
+                EndpointTrend {
+                    avg_response_time: endpoint_avg_response,
+                    error_rate: (endpoint_total_errors as f64 / endpoint_total_requests as f64)
+                        * 100.0,
+                    trend_percentage: trend,
+                    total_requests: endpoint_total_requests,
+                },
+            );
 
             if trend > 10.0 {
                 trends.trending_up.push(endpoint.clone());
@@ -379,7 +434,10 @@ impl PerformanceMonitor {
 
         if !metrics.is_empty() {
             self.repository.store_metrics(&metrics).await?;
-            debug!("Flushed {} performance metrics to repository", metrics.len());
+            debug!(
+                "Flushed {} performance metrics to repository",
+                metrics.len()
+            );
         }
 
         // Aggregate and flush accumulated metrics
@@ -411,27 +469,27 @@ impl PerformanceMonitor {
         Ok(())
     }
 
-    async fn update_aggregated_metrics(&self,
-                                     tracker: &RequestTracker,
-                                     response_time: u64,
-                                     status_code: u16,
-                                     request_size: u64,
-                                     response_size: u64) -> ErpResult<()> {
+    async fn update_aggregated_metrics(
+        &self,
+        tracker: &RequestTracker,
+        response_time: u64,
+        status_code: u16,
+        request_size: u64,
+        response_size: u64,
+    ) -> ErpResult<()> {
         let key = format!("{}:{}", tracker.method, tracker.endpoint);
         let mut cache = self.aggregated_cache.lock().unwrap();
 
-        let accumulator = cache.entry(key).or_insert_with(|| {
-            MetricsAccumulator {
-                endpoint: tracker.endpoint.clone(),
-                method: tracker.method.clone(),
-                response_times: Vec::new(),
-                total_requests: 0,
-                successful_requests: 0,
-                failed_requests: 0,
-                total_bytes_sent: 0,
-                total_bytes_received: 0,
-                _window_start: Utc::now(),
-            }
+        let accumulator = cache.entry(key).or_insert_with(|| MetricsAccumulator {
+            endpoint: tracker.endpoint.clone(),
+            method: tracker.method.clone(),
+            response_times: Vec::new(),
+            total_requests: 0,
+            successful_requests: 0,
+            failed_requests: 0,
+            total_bytes_sent: 0,
+            total_bytes_received: 0,
+            _window_start: Utc::now(),
         });
 
         accumulator.response_times.push(response_time);
@@ -468,7 +526,9 @@ impl PerformanceMonitor {
         for accumulator in accumulators {
             if accumulator.total_requests > 0 {
                 let aggregated = self.create_aggregated_metrics(accumulator)?;
-                self.repository.store_aggregated_metrics(&aggregated).await?;
+                self.repository
+                    .store_aggregated_metrics(&aggregated)
+                    .await?;
             }
         }
 
@@ -477,7 +537,10 @@ impl PerformanceMonitor {
         Ok(())
     }
 
-    fn create_aggregated_metrics(&self, accumulator: MetricsAccumulator) -> ErpResult<AggregatedMetrics> {
+    fn create_aggregated_metrics(
+        &self,
+        accumulator: MetricsAccumulator,
+    ) -> ErpResult<AggregatedMetrics> {
         let mut response_times = accumulator.response_times;
         response_times.sort_unstable();
 
@@ -489,9 +552,11 @@ impl PerformanceMonitor {
         let p99 = self.percentile(&response_times, 0.99);
 
         let window_duration_seconds = self.config.aggregation_window_minutes * 60;
-        let requests_per_second = accumulator.total_requests as f64 / window_duration_seconds as f64;
+        let requests_per_second =
+            accumulator.total_requests as f64 / window_duration_seconds as f64;
 
-        let error_rate = (accumulator.failed_requests as f64 / accumulator.total_requests as f64) * 100.0;
+        let error_rate =
+            (accumulator.failed_requests as f64 / accumulator.total_requests as f64) * 100.0;
 
         Ok(AggregatedMetrics {
             timestamp: Utc::now(),
@@ -532,19 +597,34 @@ impl PerformanceMonitor {
         }
     }
 
-    async fn check_system_performance_alerts(&self, performance: &SystemPerformance) -> ErpResult<()> {
+    async fn check_system_performance_alerts(
+        &self,
+        performance: &SystemPerformance,
+    ) -> ErpResult<()> {
         let thresholds = &self.config.alert_thresholds;
 
         if performance.cpu_usage_percent > thresholds.cpu_usage_critical_percent {
-            warn!("CRITICAL: CPU usage is {:.1}%", performance.cpu_usage_percent);
+            warn!(
+                "CRITICAL: CPU usage is {:.1}%",
+                performance.cpu_usage_percent
+            );
         } else if performance.cpu_usage_percent > thresholds.cpu_usage_warning_percent {
-            warn!("WARNING: CPU usage is {:.1}%", performance.cpu_usage_percent);
+            warn!(
+                "WARNING: CPU usage is {:.1}%",
+                performance.cpu_usage_percent
+            );
         }
 
         if performance.memory_usage_percent > thresholds.memory_usage_critical_percent {
-            warn!("CRITICAL: Memory usage is {:.1}%", performance.memory_usage_percent);
+            warn!(
+                "CRITICAL: Memory usage is {:.1}%",
+                performance.memory_usage_percent
+            );
         } else if performance.memory_usage_percent > thresholds.memory_usage_warning_percent {
-            warn!("WARNING: Memory usage is {:.1}%", performance.memory_usage_percent);
+            warn!(
+                "WARNING: Memory usage is {:.1}%",
+                performance.memory_usage_percent
+            );
         }
 
         Ok(())
@@ -622,13 +702,16 @@ impl PerformanceRepository for MockPerformanceRepository {
         Ok(())
     }
 
-    async fn get_metrics(&self, endpoint: Option<&str>, since: DateTime<Utc>, limit: Option<usize>) -> ErpResult<Vec<PerformanceMetrics>> {
+    async fn get_metrics(
+        &self,
+        endpoint: Option<&str>,
+        since: DateTime<Utc>,
+        limit: Option<usize>,
+    ) -> ErpResult<Vec<PerformanceMetrics>> {
         let metrics = self.metrics.lock().unwrap();
-        let mut filtered: Vec<PerformanceMetrics> = metrics.iter()
-            .filter(|m| {
-                m.timestamp > since &&
-                endpoint.map_or(true, |e| m.endpoint == e)
-            })
+        let mut filtered: Vec<PerformanceMetrics> = metrics
+            .iter()
+            .filter(|m| m.timestamp > since && endpoint.map_or(true, |e| m.endpoint == e))
             .cloned()
             .collect();
 
@@ -639,23 +722,29 @@ impl PerformanceRepository for MockPerformanceRepository {
         Ok(filtered)
     }
 
-    async fn get_aggregated_metrics(&self, endpoint: Option<&str>, since: DateTime<Utc>) -> ErpResult<Vec<AggregatedMetrics>> {
+    async fn get_aggregated_metrics(
+        &self,
+        endpoint: Option<&str>,
+        since: DateTime<Utc>,
+    ) -> ErpResult<Vec<AggregatedMetrics>> {
         let metrics = self.aggregated.lock().unwrap();
-        Ok(metrics.iter()
-           .filter(|m| {
-               m.timestamp > since &&
-               endpoint.map_or(true, |e| m.endpoint == e)
-           })
-           .cloned()
-           .collect())
+        Ok(metrics
+            .iter()
+            .filter(|m| m.timestamp > since && endpoint.map_or(true, |e| m.endpoint == e))
+            .cloned()
+            .collect())
     }
 
-    async fn get_system_performance(&self, since: DateTime<Utc>) -> ErpResult<Vec<SystemPerformance>> {
+    async fn get_system_performance(
+        &self,
+        since: DateTime<Utc>,
+    ) -> ErpResult<Vec<SystemPerformance>> {
         let performance = self.system_performance.lock().unwrap();
-        Ok(performance.iter()
-           .filter(|p| p.timestamp > since)
-           .cloned()
-           .collect())
+        Ok(performance
+            .iter()
+            .filter(|p| p.timestamp > since)
+            .cloned()
+            .collect())
     }
 
     async fn cleanup_old_metrics(&self, before: DateTime<Utc>) -> ErpResult<u64> {
@@ -698,28 +787,32 @@ mod tests {
 
         let request_id = "test_request_123".to_string();
 
-        monitor.start_request(
-            request_id.clone(),
-            "/api/test".to_string(),
-            "GET".to_string(),
-            Some("user123".to_string()),
-            Some("session456".to_string()),
-        ).await.unwrap();
+        monitor
+            .start_request(
+                request_id.clone(),
+                "/api/test".to_string(),
+                "GET".to_string(),
+                Some("user123".to_string()),
+                Some("session456".to_string()),
+            )
+            .await
+            .unwrap();
 
         tokio::time::sleep(tokio::time::Duration::from_millis(50)).await;
 
-        monitor.end_request(
-            request_id,
-            200,
-            1024,
-            2048,
-            None,
-        ).await.unwrap();
+        monitor
+            .end_request(request_id, 200, 1024, 2048, None)
+            .await
+            .unwrap();
 
         monitor.flush_metrics().await.unwrap();
 
         // Check that metrics were recorded
-        let metrics = monitor.repository.get_metrics(Some("/api/test"), Utc::now() - Duration::hours(1), None).await.unwrap();
+        let metrics = monitor
+            .repository
+            .get_metrics(Some("/api/test"), Utc::now() - Duration::hours(1), None)
+            .await
+            .unwrap();
         assert_eq!(metrics.len(), 1);
         assert_eq!(metrics[0].endpoint, "/api/test");
         assert_eq!(metrics[0].status_code, 200);
@@ -750,9 +843,15 @@ mod tests {
             network_io_tx_mb: 150,
         };
 
-        monitor.record_system_performance(performance.clone()).await.unwrap();
+        monitor
+            .record_system_performance(performance.clone())
+            .await
+            .unwrap();
 
-        let stored = repository.get_system_performance(Utc::now() - Duration::hours(1)).await.unwrap();
+        let stored = repository
+            .get_system_performance(Utc::now() - Duration::hours(1))
+            .await
+            .unwrap();
         assert_eq!(stored.len(), 1);
         assert_eq!(stored[0].cpu_usage_percent, 25.0);
         assert_eq!(stored[0].memory_usage_mb, 1024);
@@ -794,7 +893,10 @@ mod tests {
 
         repository.store_metrics(&metrics).await.unwrap();
 
-        let summary = monitor.get_endpoint_performance("/api/test", 1).await.unwrap();
+        let summary = monitor
+            .get_endpoint_performance("/api/test", 1)
+            .await
+            .unwrap();
 
         assert_eq!(summary.endpoint, "/api/test");
         assert_eq!(summary.total_requests, 2);
@@ -849,27 +951,28 @@ mod tests {
         let monitor = PerformanceMonitor::new(config, repository.clone());
 
         // Add old metrics
-        let old_metrics = vec![
-            PerformanceMetrics {
-                timestamp: Utc::now() - Duration::days(2),
-                endpoint: "/api/old".to_string(),
-                method: "GET".to_string(),
-                response_time_ms: 100,
-                status_code: 200,
-                request_size_bytes: 1024,
-                response_size_bytes: 2048,
-                user_id: None,
-                session_id: None,
-                error_message: None,
-            },
-        ];
+        let old_metrics = vec![PerformanceMetrics {
+            timestamp: Utc::now() - Duration::days(2),
+            endpoint: "/api/old".to_string(),
+            method: "GET".to_string(),
+            response_time_ms: 100,
+            status_code: 200,
+            request_size_bytes: 1024,
+            response_size_bytes: 2048,
+            user_id: None,
+            session_id: None,
+            error_message: None,
+        }];
 
         repository.store_metrics(&old_metrics).await.unwrap();
 
         let removed = monitor.cleanup_old_metrics().await.unwrap();
         assert_eq!(removed, 1);
 
-        let remaining = repository.get_metrics(None, Utc::now() - Duration::days(3), None).await.unwrap();
+        let remaining = repository
+            .get_metrics(None, Utc::now() - Duration::days(3), None)
+            .await
+            .unwrap();
         assert_eq!(remaining.len(), 0);
     }
 }

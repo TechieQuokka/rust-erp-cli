@@ -95,7 +95,7 @@ impl ReportsHandler {
                     let filename = format!(
                         "sales_summary_{}.{}",
                         chrono::Utc::now().format("%Y%m%d_%H%M%S"),
-                        validated_format.to_string()
+                        validated_format
                     );
                     println!("보고서가 저장되었습니다: {}", filename);
                 }
@@ -116,8 +116,10 @@ impl ReportsHandler {
         // 보고서 서비스 초기화
         let reports_service = create_reports_service(None); // Mock 사용
 
-        let mut filters = ReportFilters::default();
-        filters.low_stock_only = low_stock_only;
+        let filters = ReportFilters {
+            low_stock_only,
+            ..Default::default()
+        };
 
         let request = ReportRequest {
             report_type: ReportType::InventoryStatus,
@@ -140,7 +142,7 @@ impl ReportsHandler {
                     let filename = format!(
                         "inventory_status_{}.{}",
                         chrono::Utc::now().format("%Y%m%d_%H%M%S"),
-                        validated_format.to_string()
+                        validated_format
                     );
                     println!("보고서가 저장되었습니다: {}", filename);
                 }
@@ -191,7 +193,7 @@ impl ReportsHandler {
                     let filename = format!(
                         "customer_analysis_{}.{}",
                         chrono::Utc::now().format("%Y%m%d_%H%M%S"),
-                        validated_format.to_string()
+                        validated_format
                     );
                     println!("보고서가 저장되었습니다: {}", filename);
                 }
@@ -246,7 +248,7 @@ impl ReportsHandler {
                     let filename = format!(
                         "financial_overview_{}.{}",
                         chrono::Utc::now().format("%Y%m%d_%H%M%S"),
-                        validated_format.to_string()
+                        validated_format
                     );
                     println!("보고서가 저장되었습니다: {}", filename);
                 }

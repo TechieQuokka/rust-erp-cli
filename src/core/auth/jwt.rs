@@ -86,8 +86,8 @@ impl JwtService {
         let decoding_key = DecodingKey::from_secret(config.secret.as_ref());
 
         let mut validation = Validation::new(config.algorithm);
-        validation.set_issuer(&[config.issuer.clone()]);
-        validation.set_audience(&[config.audience.clone()]);
+        validation.set_issuer(std::slice::from_ref(&config.issuer));
+        validation.set_audience(std::slice::from_ref(&config.audience));
 
         Self {
             config,

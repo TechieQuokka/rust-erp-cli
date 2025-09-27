@@ -201,9 +201,15 @@ pub trait DeploymentRepository: Send + Sync {
     async fn store_deployment(&self, deployment: &DeploymentRecord) -> ErpResult<()>;
     async fn update_deployment(&self, deployment: &DeploymentRecord) -> ErpResult<()>;
     async fn get_deployment(&self, id: Uuid) -> ErpResult<Option<DeploymentRecord>>;
-    async fn get_deployments_by_environment(&self, env: Environment) -> ErpResult<Vec<DeploymentRecord>>;
+    async fn get_deployments_by_environment(
+        &self,
+        env: Environment,
+    ) -> ErpResult<Vec<DeploymentRecord>>;
     async fn get_latest_deployment(&self, env: Environment) -> ErpResult<Option<DeploymentRecord>>;
-    async fn get_deployment_history(&self, limit: Option<usize>) -> ErpResult<Vec<DeploymentRecord>>;
+    async fn get_deployment_history(
+        &self,
+        limit: Option<usize>,
+    ) -> ErpResult<Vec<DeploymentRecord>>;
 }
 
 pub struct DeploymentService {
@@ -215,8 +221,15 @@ impl DeploymentService {
         Self { repository }
     }
 
-    pub async fn deploy(&self, config: DeploymentConfig, deployed_by: String) -> ErpResult<DeploymentRecord> {
-        info!("Starting deployment to {:?} environment, version: {}", config.environment, config.version);
+    pub async fn deploy(
+        &self,
+        config: DeploymentConfig,
+        deployed_by: String,
+    ) -> ErpResult<DeploymentRecord> {
+        info!(
+            "Starting deployment to {:?} environment, version: {}",
+            config.environment, config.version
+        );
 
         let deployment_id = Uuid::new_v4();
         let start_time = std::time::Instant::now();
@@ -254,7 +267,9 @@ impl DeploymentService {
                 deployment.duration_seconds = Some(start_time.elapsed().as_secs());
 
                 // Attempt rollback if configured
-                if deployment.config.rollback_config.enabled && deployment.config.rollback_config.automatic_rollback {
+                if deployment.config.rollback_config.enabled
+                    && deployment.config.rollback_config.automatic_rollback
+                {
                     if let Err(rollback_error) = self.rollback(&mut deployment).await {
                         error!("Automatic rollback failed: {}", rollback_error);
                     }
@@ -268,12 +283,22 @@ impl DeploymentService {
         Ok(deployment)
     }
 
-    pub async fn rollback_deployment(&self, deployment_id: Uuid, _rolled_back_by: String) -> ErpResult<()> {
-        let mut deployment = self.repository.get_deployment(deployment_id).await?
+    pub async fn rollback_deployment(
+        &self,
+        deployment_id: Uuid,
+        _rolled_back_by: String,
+    ) -> ErpResult<()> {
+        let mut deployment = self
+            .repository
+            .get_deployment(deployment_id)
+            .await?
             .ok_or_else(|| ErpError::not_found("deployment", &deployment_id.to_string()))?;
 
         if deployment.status != DeploymentStatus::Completed {
-            return Err(ErpError::validation("deployment", "Can only rollback completed deployments"));
+            return Err(ErpError::validation(
+                "deployment",
+                "Can only rollback completed deployments",
+            ));
         }
 
         info!("Starting manual rollback for deployment: {}", deployment_id);
@@ -286,11 +311,17 @@ impl DeploymentService {
     }
 
     pub async fn get_deployment_status(&self, deployment_id: Uuid) -> ErpResult<DeploymentRecord> {
-        self.repository.get_deployment(deployment_id).await?
+        self.repository
+            .get_deployment(deployment_id)
+            .await?
             .ok_or_else(|| ErpError::not_found("deployment", &deployment_id.to_string()))
     }
 
-    pub async fn list_deployments(&self, environment: Option<Environment>, limit: Option<usize>) -> ErpResult<Vec<DeploymentRecord>> {
+    pub async fn list_deployments(
+        &self,
+        environment: Option<Environment>,
+        limit: Option<usize>,
+    ) -> ErpResult<Vec<DeploymentRecord>> {
         match environment {
             Some(env) => self.repository.get_deployments_by_environment(env).await,
             None => self.repository.get_deployment_history(limit).await,
@@ -343,19 +374,29 @@ impl DeploymentService {
 
         // Run pre-build scripts
         for script in &deployment.config.build_config.pre_build_scripts {
-            self.run_script(script, &deployment.config.build_config.environment_variables)?;
+            self.run_script(
+                script,
+                &deployment.config.build_config.environment_variables,
+            )?;
         }
 
         // Execute cargo build
-        let build_result = self.execute_cargo_build(&deployment.config.build_config).await?;
+        let build_result = self
+            .execute_cargo_build(&deployment.config.build_config)
+            .await?;
 
         // Create build artifacts
-        let artifacts = self.create_build_artifacts(&deployment.config.build_config, &build_result).await?;
+        let artifacts = self
+            .create_build_artifacts(&deployment.config.build_config, &build_result)
+            .await?;
         deployment.build_artifacts = artifacts;
 
         // Run post-build scripts
         for script in &deployment.config.build_config.post_build_scripts {
-            self.run_script(script, &deployment.config.build_config.environment_variables)?;
+            self.run_script(
+                script,
+                &deployment.config.build_config.environment_variables,
+            )?;
         }
 
         // Update step status
@@ -402,7 +443,10 @@ impl DeploymentService {
         Ok(())
     }
 
-    async fn execute_database_migration_step(&self, deployment: &mut DeploymentRecord) -> ErpResult<()> {
+    async fn execute_database_migration_step(
+        &self,
+        deployment: &mut DeploymentRecord,
+    ) -> ErpResult<()> {
         if !deployment.config.database_config.run_migrations {
             debug!("Skipping database migrations");
             return Ok(());
@@ -430,7 +474,9 @@ impl DeploymentService {
             // Database backup logic would go here
         }
 
-        let migration_result = self.execute_database_migrations(&deployment.config.database_config).await?;
+        let migration_result = self
+            .execute_database_migrations(&deployment.config.database_config)
+            .await?;
 
         step.status = StepStatus::Completed;
         step.completed_at = Some(Utc::now());
@@ -444,7 +490,10 @@ impl DeploymentService {
         Ok(())
     }
 
-    async fn execute_application_deployment_step(&self, deployment: &mut DeploymentRecord) -> ErpResult<()> {
+    async fn execute_application_deployment_step(
+        &self,
+        deployment: &mut DeploymentRecord,
+    ) -> ErpResult<()> {
         let step_name = "Deploy Application";
         let start_time = Utc::now();
 
@@ -461,7 +510,9 @@ impl DeploymentService {
 
         info!("Executing application deployment step");
 
-        let deployment_result = self.deploy_application_artifacts(&deployment.build_artifacts).await?;
+        let deployment_result = self
+            .deploy_application_artifacts(&deployment.build_artifacts)
+            .await?;
 
         step.status = StepStatus::Completed;
         step.completed_at = Some(Utc::now());
@@ -484,16 +535,26 @@ impl DeploymentService {
 
             if result.status == HealthCheckStatus::Failed {
                 if deployment.config.rollback_config.enabled {
-                    let failed_checks = deployment.health_check_results.iter()
+                    let failed_checks = deployment
+                        .health_check_results
+                        .iter()
                         .filter(|r| r.status == HealthCheckStatus::Failed)
                         .count();
 
-                    if failed_checks >= deployment.config.rollback_config.health_check_failures_threshold as usize {
+                    if failed_checks
+                        >= deployment
+                            .config
+                            .rollback_config
+                            .health_check_failures_threshold as usize
+                    {
                         warn!("Health check failure threshold reached, triggering rollback");
                         return Err(ErpError::validation("health_check", "Health checks failed"));
                     }
                 } else {
-                    return Err(ErpError::validation("health_check", &format!("Health check failed: {}", health_check.name)));
+                    return Err(ErpError::validation(
+                        "health_check",
+                        &format!("Health check failed: {}", health_check.name),
+                    ));
                 }
             }
         }
@@ -508,7 +569,10 @@ impl DeploymentService {
         let rollback_start = std::time::Instant::now();
 
         // Get previous deployment
-        let previous_deployment = self.repository.get_latest_deployment(deployment.environment.clone()).await?
+        let previous_deployment = self
+            .repository
+            .get_latest_deployment(deployment.environment.clone())
+            .await?
             .filter(|d| d.id != deployment.id && d.status == DeploymentStatus::Completed);
 
         let previous_version = previous_deployment
@@ -516,7 +580,8 @@ impl DeploymentService {
             .unwrap_or_else(|| "unknown".to_string());
 
         // Execute rollback steps
-        self.execute_rollback_steps(deployment, &previous_version).await?;
+        self.execute_rollback_steps(deployment, &previous_version)
+            .await?;
 
         let rollback_info = RollbackInfo {
             triggered_by: if deployment.status == DeploymentStatus::Failed {
@@ -536,7 +601,11 @@ impl DeploymentService {
         Ok(())
     }
 
-    async fn execute_rollback_steps(&self, deployment: &DeploymentRecord, previous_version: &str) -> ErpResult<()> {
+    async fn execute_rollback_steps(
+        &self,
+        deployment: &DeploymentRecord,
+        previous_version: &str,
+    ) -> ErpResult<()> {
         info!("Rolling back to version: {}", previous_version);
 
         // Stop current application
@@ -584,12 +653,16 @@ impl DeploymentService {
             cmd.env(key, value);
         }
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| ErpError::internal(&format!("Failed to execute cargo build: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(&format!("Cargo build failed: {}", error)));
+            return Err(ErpError::internal(&format!(
+                "Cargo build failed: {}",
+                error
+            )));
         }
 
         let build_output = String::from_utf8_lossy(&output.stdout);
@@ -606,7 +679,8 @@ impl DeploymentService {
             cmd.arg("--release");
         }
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| ErpError::internal(&format!("Failed to execute cargo test: {}", e)))?;
 
         if !output.status.success() {
@@ -620,7 +694,10 @@ impl DeploymentService {
         Ok(test_output.to_string())
     }
 
-    async fn execute_database_migrations(&self, db_config: &DatabaseDeploymentConfig) -> ErpResult<String> {
+    async fn execute_database_migrations(
+        &self,
+        db_config: &DatabaseDeploymentConfig,
+    ) -> ErpResult<String> {
         info!("Running database migrations");
 
         // This is a placeholder - in a real implementation, you would:
@@ -628,13 +705,20 @@ impl DeploymentService {
         // 2. Run migration scripts from the specified path
         // 3. Update migration tracking table
 
-        let migration_result = format!("Migrations executed from: {}", db_config.migration_scripts_path.display());
+        let migration_result = format!(
+            "Migrations executed from: {}",
+            db_config.migration_scripts_path.display()
+        );
         debug!("Database migration result: {}", migration_result);
 
         Ok(migration_result)
     }
 
-    async fn create_build_artifacts(&self, build_config: &BuildConfig, _build_output: &str) -> ErpResult<Vec<BuildArtifact>> {
+    async fn create_build_artifacts(
+        &self,
+        build_config: &BuildConfig,
+        _build_output: &str,
+    ) -> ErpResult<Vec<BuildArtifact>> {
         let mut artifacts = Vec::new();
 
         // Determine binary path based on optimization level
@@ -643,7 +727,8 @@ impl DeploymentService {
             _ => "release",
         };
 
-        let binary_path = build_config.build_directory
+        let binary_path = build_config
+            .build_directory
             .join("target")
             .join(binary_dir)
             .join(&build_config.artifact_name);
@@ -673,7 +758,10 @@ impl DeploymentService {
         info!("Deploying {} artifacts", artifacts.len());
 
         for artifact in artifacts {
-            info!("Deploying artifact: {} ({} bytes)", artifact.name, artifact.size_bytes);
+            info!(
+                "Deploying artifact: {} ({} bytes)",
+                artifact.name, artifact.size_bytes
+            );
             // In a real implementation, this would:
             // 1. Copy artifacts to deployment directory
             // 2. Update symlinks
@@ -681,10 +769,16 @@ impl DeploymentService {
             // 4. Update load balancer configuration
         }
 
-        Ok(format!("Deployed {} artifacts successfully", artifacts.len()))
+        Ok(format!(
+            "Deployed {} artifacts successfully",
+            artifacts.len()
+        ))
     }
 
-    async fn run_health_check(&self, health_check: &HealthCheckConfig) -> ErpResult<HealthCheckResult> {
+    async fn run_health_check(
+        &self,
+        health_check: &HealthCheckConfig,
+    ) -> ErpResult<HealthCheckResult> {
         let start_time = std::time::Instant::now();
 
         info!("Running health check: {}", health_check.name);
@@ -692,7 +786,10 @@ impl DeploymentService {
         // Simulate health check HTTP request
         // In a real implementation, this would make an actual HTTP request
         let (status, error_message) = if health_check.endpoint.contains("fail") {
-            (HealthCheckStatus::Failed, Some("Health check endpoint returned error".to_string()))
+            (
+                HealthCheckStatus::Failed,
+                Some("Health check endpoint returned error".to_string()),
+            )
         } else {
             (HealthCheckStatus::Passed, None)
         };
@@ -734,7 +831,8 @@ impl DeploymentService {
             cmd.env(key, value);
         }
 
-        let output = cmd.output()
+        let output = cmd
+            .output()
             .map_err(|e| ErpError::internal(&format!("Failed to execute script: {}", e)))?;
 
         if !output.status.success() {
@@ -746,7 +844,7 @@ impl DeploymentService {
     }
 
     fn calculate_file_checksum(&self, file_path: &Path) -> ErpResult<String> {
-        use sha2::{Sha256, Digest};
+        use sha2::{Digest, Sha256};
         use std::fs::File;
         use std::io::{BufReader, Read};
 
@@ -802,23 +900,31 @@ impl DeploymentRepository for MockDeploymentRepository {
         Ok(deployments.iter().find(|d| d.id == id).cloned())
     }
 
-    async fn get_deployments_by_environment(&self, env: Environment) -> ErpResult<Vec<DeploymentRecord>> {
+    async fn get_deployments_by_environment(
+        &self,
+        env: Environment,
+    ) -> ErpResult<Vec<DeploymentRecord>> {
         let deployments = self.deployments.lock().unwrap();
-        Ok(deployments.iter()
-           .filter(|d| d.environment == env)
-           .cloned()
-           .collect())
+        Ok(deployments
+            .iter()
+            .filter(|d| d.environment == env)
+            .cloned()
+            .collect())
     }
 
     async fn get_latest_deployment(&self, env: Environment) -> ErpResult<Option<DeploymentRecord>> {
         let deployments = self.deployments.lock().unwrap();
-        Ok(deployments.iter()
-           .filter(|d| d.environment == env)
-           .max_by_key(|d| d.timestamp)
-           .cloned())
+        Ok(deployments
+            .iter()
+            .filter(|d| d.environment == env)
+            .max_by_key(|d| d.timestamp)
+            .cloned())
     }
 
-    async fn get_deployment_history(&self, limit: Option<usize>) -> ErpResult<Vec<DeploymentRecord>> {
+    async fn get_deployment_history(
+        &self,
+        limit: Option<usize>,
+    ) -> ErpResult<Vec<DeploymentRecord>> {
         let deployments = self.deployments.lock().unwrap();
         let mut sorted_deployments = deployments.clone();
         sorted_deployments.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
@@ -882,15 +988,13 @@ mod tests {
                 memory_threshold: 80.0,
                 auto_scaling_enabled: false,
             },
-            health_checks: vec![
-                HealthCheckConfig {
-                    name: "basic".to_string(),
-                    endpoint: "/health".to_string(),
-                    timeout_seconds: 30,
-                    expected_status_code: 200,
-                    retries: 3,
-                }
-            ],
+            health_checks: vec![HealthCheckConfig {
+                name: "basic".to_string(),
+                endpoint: "/health".to_string(),
+                timeout_seconds: 30,
+                expected_status_code: 200,
+                retries: 3,
+            }],
             rollback_config: RollbackConfig {
                 enabled: true,
                 automatic_rollback: false,
@@ -940,11 +1044,17 @@ mod tests {
         assert_eq!(retrieved.unwrap().id, deployment.id);
 
         // Get by environment
-        let env_deployments = repository.get_deployments_by_environment(Environment::Development).await.unwrap();
+        let env_deployments = repository
+            .get_deployments_by_environment(Environment::Development)
+            .await
+            .unwrap();
         assert_eq!(env_deployments.len(), 1);
 
         // Get latest
-        let latest = repository.get_latest_deployment(Environment::Development).await.unwrap();
+        let latest = repository
+            .get_latest_deployment(Environment::Development)
+            .await
+            .unwrap();
         assert!(latest.is_some());
         assert_eq!(latest.unwrap().id, deployment.id);
     }
@@ -1015,7 +1125,10 @@ mod tests {
             rollback_duration_seconds: 45,
         };
 
-        assert!(matches!(rollback.triggered_by, RollbackTrigger::HealthCheckFailure));
+        assert!(matches!(
+            rollback.triggered_by,
+            RollbackTrigger::HealthCheckFailure
+        ));
         assert_eq!(rollback.previous_version, "0.9.0");
         assert_eq!(rollback.rollback_duration_seconds, 45);
     }

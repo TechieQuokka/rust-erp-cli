@@ -244,7 +244,7 @@ impl CliValidator {
     }
 
     pub fn validate_discount_percentage(discount: f64) -> ErpResult<f64> {
-        if discount < 0.0 || discount > 100.0 {
+        if !(0.0..=100.0).contains(&discount) {
             return Err(ErpError::validation(
                 "discount",
                 "할인율은 0-100% 범위여야 합니다",

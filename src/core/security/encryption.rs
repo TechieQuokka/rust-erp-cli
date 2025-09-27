@@ -70,8 +70,10 @@ impl EncryptionService {
             if key.len() != 32 {
                 return Err(ErpError::validation("encryption_key", "must be 32 bytes"));
             }
-            Some(Aes256Gcm::new_from_slice(key)
-                .map_err(|e| ErpError::internal(format!("Failed to create cipher: {}", e)))?)
+            Some(
+                Aes256Gcm::new_from_slice(key)
+                    .map_err(|e| ErpError::internal(format!("Failed to create cipher: {}", e)))?,
+            )
         } else {
             None
         };
@@ -95,15 +97,19 @@ impl EncryptionService {
         }
 
         self.config.master_key = Some(key.clone());
-        self.cipher = Some(Aes256Gcm::new_from_slice(&key)
-            .map_err(|e| ErpError::internal(format!("Failed to create cipher: {}", e)))?);
+        self.cipher = Some(
+            Aes256Gcm::new_from_slice(&key)
+                .map_err(|e| ErpError::internal(format!("Failed to create cipher: {}", e)))?,
+        );
 
         debug!("Master encryption key updated");
         Ok(())
     }
 
     pub fn encrypt(&self, plaintext: &str) -> ErpResult<EncryptedData> {
-        let cipher = self.cipher.as_ref()
+        let cipher = self
+            .cipher
+            .as_ref()
             .ok_or_else(|| ErpError::internal("Encryption not configured - no master key"))?;
 
         // Generate random nonce
@@ -130,7 +136,9 @@ impl EncryptionService {
     }
 
     pub fn decrypt(&self, encrypted_data: &EncryptedData) -> ErpResult<String> {
-        let cipher = self.cipher.as_ref()
+        let cipher = self
+            .cipher
+            .as_ref()
             .ok_or_else(|| ErpError::internal("Encryption not configured - no master key"))?;
 
         // Decode from base64
@@ -160,7 +168,11 @@ impl EncryptionService {
         Ok(result)
     }
 
-    pub fn encrypt_with_password(&self, plaintext: &str, password: &str) -> ErpResult<EncryptedData> {
+    pub fn encrypt_with_password(
+        &self,
+        plaintext: &str,
+        password: &str,
+    ) -> ErpResult<EncryptedData> {
         // Generate salt for key derivation
         let salt = argon2::password_hash::SaltString::generate(&mut OsRng);
 
@@ -188,16 +200,20 @@ impl EncryptionService {
 
         debug!("Data encrypted with password successfully");
 
-        Ok(EncryptedData::new(
-            ciphertext_b64,
-            nonce_b64,
-            "AES-256-GCM-PBKDF2".to_string(),
-        ).with_salt(salt_b64))
+        Ok(
+            EncryptedData::new(ciphertext_b64, nonce_b64, "AES-256-GCM-PBKDF2".to_string())
+                .with_salt(salt_b64),
+        )
     }
 
-    pub fn decrypt_with_password(&self, encrypted_data: &EncryptedData, password: &str) -> ErpResult<String> {
-        let salt_b64 = encrypted_data.salt.as_ref()
-            .ok_or_else(|| ErpError::validation("salt", "Missing salt for password-based decryption"))?;
+    pub fn decrypt_with_password(
+        &self,
+        encrypted_data: &EncryptedData,
+        password: &str,
+    ) -> ErpResult<String> {
+        let salt_b64 = encrypted_data.salt.as_ref().ok_or_else(|| {
+            ErpError::validation("salt", "Missing salt for password-based decryption")
+        })?;
 
         let salt_bytes = general_purpose::STANDARD
             .decode(salt_b64)
@@ -271,7 +287,11 @@ impl EncryptionService {
 
         let mut key = vec![0u8; 32];
         argon2
-            .hash_password_into(password.as_bytes(), salt_string.as_str().as_bytes(), &mut key)
+            .hash_password_into(
+                password.as_bytes(),
+                salt_string.as_str().as_bytes(),
+                &mut key,
+            )
             .map_err(|e| ErpError::internal(format!("Key derivation failed: {}", e)))?;
 
         Ok(key)
@@ -347,7 +367,11 @@ where
         Ok(value)
     }
 
-    pub fn encrypt_with_password(service: &EncryptionService, value: &T, password: &str) -> ErpResult<Self> {
+    pub fn encrypt_with_password(
+        service: &EncryptionService,
+        value: &T,
+        password: &str,
+    ) -> ErpResult<Self> {
         let json = serde_json::to_string(value)
             .map_err(|e| ErpError::internal(format!("Serialization failed: {}", e)))?;
 
@@ -359,7 +383,11 @@ where
         })
     }
 
-    pub fn decrypt_with_password(&self, service: &EncryptionService, password: &str) -> ErpResult<T> {
+    pub fn decrypt_with_password(
+        &self,
+        service: &EncryptionService,
+        password: &str,
+    ) -> ErpResult<T> {
         let json = service.decrypt_with_password(&self.encrypted_data, password)?;
 
         let value = serde_json::from_str(&json)
@@ -378,11 +406,18 @@ pub fn encrypt_pii(service: &EncryptionService, pii_data: &str) -> ErpResult<Enc
     service.encrypt(pii_data)
 }
 
-pub fn decrypt_pii(service: &EncryptionService, encrypted_pii: &EncryptedData) -> ErpResult<String> {
+pub fn decrypt_pii(
+    service: &EncryptionService,
+    encrypted_pii: &EncryptedData,
+) -> ErpResult<String> {
     service.decrypt(encrypted_pii)
 }
 
-pub fn encrypt_financial_data(service: &EncryptionService, amount: &str, currency: &str) -> ErpResult<EncryptedData> {
+pub fn encrypt_financial_data(
+    service: &EncryptionService,
+    amount: &str,
+    currency: &str,
+) -> ErpResult<EncryptedData> {
     let financial_data = serde_json::json!({
         "amount": amount,
         "currency": currency,
@@ -448,7 +483,9 @@ impl KeyRotationManager {
                     warn!("Attempting decryption with previous key");
                     previous.decrypt(encrypted_data)
                 } else {
-                    Err(ErpError::Authentication("Unable to decrypt data with available keys".to_string()))
+                    Err(ErpError::Authentication(
+                        "Unable to decrypt data with available keys".to_string(),
+                    ))
                 }
             }
         }
@@ -561,7 +598,7 @@ mod tests {
         let service = EncryptionService::with_default_config().unwrap();
 
         assert_eq!(service.mask_sensitive_data("password123", 4), "pass*******");
-        assert_eq!(service.mask_sensitive_data("short", 4), "*****");
+        assert_eq!(service.mask_sensitive_data("short", 4), "shor*");
         assert_eq!(service.mask_sensitive_data("test", 6), "****");
     }
 

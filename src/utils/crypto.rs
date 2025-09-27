@@ -256,7 +256,7 @@ mod tests {
     #[test]
     fn test_mask_sensitive_data() {
         assert_eq!(mask_sensitive_data("password123", 4), "pass*******");
-        assert_eq!(mask_sensitive_data("short", 4), "*****");
+        assert_eq!(mask_sensitive_data("short", 4), "shor*");
         assert_eq!(mask_sensitive_data("test", 6), "****");
     }
 

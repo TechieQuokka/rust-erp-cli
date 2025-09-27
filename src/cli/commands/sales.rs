@@ -327,10 +327,10 @@ impl SalesHandler {
                 items_table.add_row(vec![
                     Cell::new(&item_with_product.product_name),
                     Cell::new(&item_with_product.product_sku),
-                    Cell::new(&item_with_product.item.quantity.to_string()),
-                    Cell::new(&format!("${:.2}", item_with_product.item.unit_price)),
-                    Cell::new(&format!("${:.2}", item_with_product.item.discount)),
-                    Cell::new(&format!("${:.2}", item_with_product.item.line_total)),
+                    Cell::new(item_with_product.item.quantity.to_string()),
+                    Cell::new(format!("${:.2}", item_with_product.item.unit_price)),
+                    Cell::new(format!("${:.2}", item_with_product.item.discount)),
+                    Cell::new(format!("${:.2}", item_with_product.item.line_total)),
                 ]);
             }
 
@@ -351,27 +351,25 @@ impl SalesHandler {
 
         for order in orders {
             let status_cell = match order.status {
-                OrderStatus::Delivered => Cell::new(&order.status.to_string()).fg(Color::Green),
+                OrderStatus::Delivered => Cell::new(order.status.to_string()).fg(Color::Green),
                 OrderStatus::Cancelled | OrderStatus::Returned => {
-                    Cell::new(&order.status.to_string()).fg(Color::Red)
+                    Cell::new(order.status.to_string()).fg(Color::Red)
                 }
                 OrderStatus::Processing | OrderStatus::Shipped => {
-                    Cell::new(&order.status.to_string()).fg(Color::Yellow)
+                    Cell::new(order.status.to_string()).fg(Color::Yellow)
                 }
-                _ => Cell::new(&order.status.to_string()),
+                _ => Cell::new(order.status.to_string()),
             };
 
             let payment_cell = match order.payment_status {
-                PaymentStatus::Paid => {
-                    Cell::new(&order.payment_status.to_string()).fg(Color::Green)
-                }
+                PaymentStatus::Paid => Cell::new(order.payment_status.to_string()).fg(Color::Green),
                 PaymentStatus::Failed | PaymentStatus::Overdue => {
-                    Cell::new(&order.payment_status.to_string()).fg(Color::Red)
+                    Cell::new(order.payment_status.to_string()).fg(Color::Red)
                 }
                 PaymentStatus::PartiallyPaid => {
-                    Cell::new(&order.payment_status.to_string()).fg(Color::Yellow)
+                    Cell::new(order.payment_status.to_string()).fg(Color::Yellow)
                 }
-                _ => Cell::new(&order.payment_status.to_string()),
+                _ => Cell::new(order.payment_status.to_string()),
             };
 
             table.add_row(vec![
@@ -379,8 +377,8 @@ impl SalesHandler {
                 Cell::new(&order.customer_id.to_string()[..8]),
                 status_cell,
                 payment_cell,
-                Cell::new(&format!("${:.2}", order.total_amount)),
-                Cell::new(&order.order_date.format("%Y-%m-%d").to_string()),
+                Cell::new(format!("${:.2}", order.total_amount)),
+                Cell::new(order.order_date.format("%Y-%m-%d").to_string()),
             ]);
         }
 
