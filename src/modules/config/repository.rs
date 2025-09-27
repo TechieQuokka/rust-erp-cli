@@ -37,55 +37,52 @@ impl ConfigRepository {
     pub async fn init_table(&self) -> ErpResult<()> {
         let pool = self.db.pool();
 
-        // SQLite와 PostgreSQL 모두 호환되는 CREATE TABLE 문
-        let query = r#"
+        // PostgreSQL 호환 CREATE TABLE 문
+        let create_table_query = r#"
             CREATE TABLE IF NOT EXISTS config_items (
-                id TEXT PRIMARY KEY,
-                key TEXT UNIQUE NOT NULL,
+                id UUID PRIMARY KEY,
+                key VARCHAR(255) UNIQUE NOT NULL,
                 value TEXT NOT NULL,
                 description TEXT,
-                category TEXT NOT NULL,
+                category VARCHAR(100) NOT NULL DEFAULT 'general',
                 is_secret BOOLEAN NOT NULL DEFAULT FALSE,
                 is_readonly BOOLEAN NOT NULL DEFAULT FALSE,
-                created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL
-            );
-
-            CREATE INDEX IF NOT EXISTS idx_config_key ON config_items(key);
-            CREATE INDEX IF NOT EXISTS idx_config_category ON config_items(category);
+                created_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW(),
+                updated_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT NOW()
+            )
         "#;
 
-        sqlx::raw_sql(query).execute(pool).await.map_err(|e| {
+        sqlx::query(create_table_query).execute(pool).await.map_err(|e| {
             ErpError::database(format!("Failed to create config_items table: {}", e))
         })?;
+
+        // 인덱스 생성
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_config_key ON config_items(key)")
+            .execute(pool).await.map_err(|e| {
+                ErpError::database(format!("Failed to create key index: {}", e))
+            })?;
+
+        sqlx::query("CREATE INDEX IF NOT EXISTS idx_config_category ON config_items(category)")
+            .execute(pool).await.map_err(|e| {
+                ErpError::database(format!("Failed to create category index: {}", e))
+            })?;
 
         Ok(())
     }
 
     /// SQL 쿼리에서 ConfigItem 생성
     fn row_to_config_item(&self, row: &PgRow) -> ErpResult<ConfigItem> {
-        let id_str: String = row
+        let id: Uuid = row
             .try_get("id")
             .map_err(|e| ErpError::database(format!("Failed to get id from row: {}", e)))?;
 
-        let id = Uuid::parse_str(&id_str)
-            .map_err(|e| ErpError::database(format!("Failed to parse UUID: {}", e)))?;
-
-        let created_at_str: String = row
+        let created_at: chrono::DateTime<chrono::Utc> = row
             .try_get("created_at")
             .map_err(|e| ErpError::database(format!("Failed to get created_at from row: {}", e)))?;
 
-        let updated_at_str: String = row
+        let updated_at: chrono::DateTime<chrono::Utc> = row
             .try_get("updated_at")
             .map_err(|e| ErpError::database(format!("Failed to get updated_at from row: {}", e)))?;
-
-        let created_at = created_at_str
-            .parse()
-            .map_err(|e| ErpError::database(format!("Failed to parse created_at: {}", e)))?;
-
-        let updated_at = updated_at_str
-            .parse()
-            .map_err(|e| ErpError::database(format!("Failed to parse updated_at: {}", e)))?;
 
         Ok(ConfigItem {
             id,
@@ -122,19 +119,19 @@ impl ConfigRepositoryTrait for ConfigRepository {
 
         let query = r#"
             INSERT INTO config_items (id, key, value, description, category, is_secret, is_readonly, created_at, updated_at)
-            VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         "#;
 
         sqlx::query(query)
-            .bind(config_item.id.to_string())
+            .bind(config_item.id)
             .bind(&config_item.key)
             .bind(&config_item.value)
             .bind(&config_item.description)
             .bind(&config_item.category)
             .bind(config_item.is_secret)
             .bind(config_item.is_readonly)
-            .bind(config_item.created_at.to_rfc3339())
-            .bind(config_item.updated_at.to_rfc3339())
+            .bind(config_item.created_at)
+            .bind(config_item.updated_at)
             .execute(pool)
             .await
             .map_err(|e| ErpError::database(format!("Failed to create config item: {}", e)))?;
@@ -145,7 +142,7 @@ impl ConfigRepositoryTrait for ConfigRepository {
     async fn get_by_key(&self, key: &str) -> ErpResult<Option<ConfigItem>> {
         let pool = self.db.pool();
 
-        let query = "SELECT * FROM config_items WHERE key = ?1";
+        let query = "SELECT * FROM config_items WHERE key = $1";
 
         match sqlx::query(query).bind(key).fetch_one(pool).await {
             Ok(row) => Ok(Some(self.row_to_config_item(&row)?)),
@@ -160,10 +157,10 @@ impl ConfigRepositoryTrait for ConfigRepository {
     async fn get_by_id(&self, id: &Uuid) -> ErpResult<Option<ConfigItem>> {
         let pool = self.db.pool();
 
-        let query = "SELECT * FROM config_items WHERE id = ?1";
+        let query = "SELECT * FROM config_items WHERE id = $1";
 
         match sqlx::query(query)
-            .bind(id.to_string())
+            .bind(id)
             .fetch_one(pool)
             .await
         {
@@ -316,9 +313,9 @@ impl ConfigRepositoryTrait for ConfigRepository {
             return Err(ErpError::forbidden("Cannot delete readonly configuration"));
         }
 
-        let query = "DELETE FROM config_items WHERE id = ?1";
+        let query = "DELETE FROM config_items WHERE id = $1";
         sqlx::query(query)
-            .bind(id.to_string())
+            .bind(id)
             .execute(pool)
             .await
             .map_err(|e| ErpError::database(format!("Failed to delete config: {}", e)))?;
@@ -340,7 +337,7 @@ impl ConfigRepositoryTrait for ConfigRepository {
             return Err(ErpError::forbidden("Cannot delete readonly configuration"));
         }
 
-        let query = "DELETE FROM config_items WHERE key = ?1";
+        let query = "DELETE FROM config_items WHERE key = $1";
         sqlx::query(query)
             .bind(key)
             .execute(pool)
@@ -353,7 +350,7 @@ impl ConfigRepositoryTrait for ConfigRepository {
     async fn key_exists(&self, key: &str) -> ErpResult<bool> {
         let pool = self.db.pool();
 
-        let query = "SELECT COUNT(*) as count FROM config_items WHERE key = ?1";
+        let query = "SELECT COUNT(*) as count FROM config_items WHERE key = $1";
         let row = sqlx::query(query)
             .bind(key)
             .fetch_one(pool)

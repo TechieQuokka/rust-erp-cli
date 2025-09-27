@@ -3,11 +3,20 @@ use erp_cli::cli::parser::Cli;
 
 #[tokio::main]
 async fn main() {
-    // CLI 파싱만 테스트 (Phase 3)
+    // .env 파일 로드
+    dotenvy::dotenv().ok();
+
+    // CLI 파싱
     let cli = Cli::parse();
 
-    // 기본 설정 생성 (Phase 3에서는 간단한 더미 설정 사용)
-    let config = erp_cli::core::config::AppConfig::default();
+    // 실제 설정 로드
+    let config = match erp_cli::core::config::AppConfig::load().await {
+        Ok(config) => config,
+        Err(e) => {
+            eprintln!("Failed to load configuration: {}", e);
+            std::process::exit(1);
+        }
+    };
 
     // CLI 실행
     if let Err(e) = cli.run(config).await {

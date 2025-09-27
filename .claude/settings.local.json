@@ -1,20 +1,7 @@
 {
   "permissions": {
     "allow": [
-      "Bash(find:*)",
-      "mcp__sequential-thinking__sequentialthinking",
-      "Bash(cargo check:*)",
-      "Bash(cargo fmt:*)",
-      "Bash(cargo clippy:*)",
-      "Bash(cargo:*)",
-      "Bash(sqlx database create:*)",
-      "Bash(SQLX_OFFLINE=true cargo check)",
-      "Bash(gh repo create:*)",
-      "Bash(git remote add:*)",
-      "Bash(git add:*)",
-      "Bash(git push:*)",
-      "Bash(mkdir:*)",
-      "Bash(chmod:*)"
+      "Bash(powershell:*)"
     ],
     "deny": [],
     "ask": []

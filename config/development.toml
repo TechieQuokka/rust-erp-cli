@@ -1,7 +1,7 @@
 [database]
-url = "sqlite://dev.db"
+url = "postgresql://postgres:2147483647@localhost:5432/erp_db"
 max_connections = 5
-migrate_on_start = true
+migrate_on_start = false
 query_timeout_seconds = 10
 
 [logging]

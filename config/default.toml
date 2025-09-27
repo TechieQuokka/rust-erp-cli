@@ -1,6 +1,6 @@
 [database]
 # SQLite for development, PostgreSQL for production
-url = "postgresql://username:password@localhost:5513/erp_db"
+url = "postgresql://postgres:2147483647@localhost:5432/erp_db"
 max_connections = 10
 migrate_on_start = true
 query_timeout_seconds = 30
