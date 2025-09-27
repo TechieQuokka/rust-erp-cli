@@ -4,7 +4,7 @@
 
 -- Customers table for customer relationship management
 CREATE TABLE IF NOT EXISTS customers (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255) UNIQUE,
     phone VARCHAR(50),
@@ -14,14 +14,14 @@ CREATE TABLE IF NOT EXISTS customers (
     credit_limit DECIMAL(10,2) DEFAULT 0.00,
     current_balance DECIMAL(10,2) DEFAULT 0.00,
     notes TEXT,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Customer addresses table for shipping and billing addresses
 CREATE TABLE IF NOT EXISTS customer_addresses (
-    id TEXT PRIMARY KEY,
-    customer_id TEXT NOT NULL,
+    id VARCHAR(36) PRIMARY KEY,
+    customer_id VARCHAR(36) NOT NULL,
     address_type VARCHAR(20) NOT NULL DEFAULT 'billing', -- billing, shipping, other
     address_line1 VARCHAR(255) NOT NULL,
     address_line2 VARCHAR(255),
@@ -29,8 +29,8 @@ CREATE TABLE IF NOT EXISTS customer_addresses (
     state_province VARCHAR(100),
     postal_code VARCHAR(20),
     country VARCHAR(100) DEFAULT 'US',
-    is_default BOOLEAN NOT NULL DEFAULT 0,
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE
 );
 

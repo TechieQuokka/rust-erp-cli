@@ -52,20 +52,23 @@ impl ConfigRepository {
             )
         "#;
 
-        sqlx::query(create_table_query).execute(pool).await.map_err(|e| {
-            ErpError::database(format!("Failed to create config_items table: {}", e))
-        })?;
+        sqlx::query(create_table_query)
+            .execute(pool)
+            .await
+            .map_err(|e| {
+                ErpError::database(format!("Failed to create config_items table: {}", e))
+            })?;
 
         // 인덱스 생성
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_config_key ON config_items(key)")
-            .execute(pool).await.map_err(|e| {
-                ErpError::database(format!("Failed to create key index: {}", e))
-            })?;
+            .execute(pool)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to create key index: {}", e)))?;
 
         sqlx::query("CREATE INDEX IF NOT EXISTS idx_config_category ON config_items(category)")
-            .execute(pool).await.map_err(|e| {
-                ErpError::database(format!("Failed to create category index: {}", e))
-            })?;
+            .execute(pool)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to create category index: {}", e)))?;
 
         Ok(())
     }
@@ -159,11 +162,7 @@ impl ConfigRepositoryTrait for ConfigRepository {
 
         let query = "SELECT * FROM config_items WHERE id = $1";
 
-        match sqlx::query(query)
-            .bind(id)
-            .fetch_one(pool)
-            .await
-        {
+        match sqlx::query(query).bind(id).fetch_one(pool).await {
             Ok(row) => Ok(Some(self.row_to_config_item(&row)?)),
             Err(sqlx::Error::RowNotFound) => Ok(None),
             Err(e) => Err(ErpError::database(format!(

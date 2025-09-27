@@ -2,23 +2,17 @@
 -- Version: 001
 -- Description: Create core tables for users and schema migrations
 
--- Enable foreign keys for SQLite
-PRAGMA foreign_keys = ON;
-
--- Schema migrations table (handled by migration system)
--- This table is automatically created by the migration system
-
 -- Users table for authentication
 CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
+    id VARCHAR(36) PRIMARY KEY,
     username VARCHAR(255) NOT NULL UNIQUE,
     email VARCHAR(255) NOT NULL UNIQUE,
     password_hash VARCHAR(255) NOT NULL,
     full_name VARCHAR(255),
     role VARCHAR(50) NOT NULL DEFAULT 'user',
-    created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    is_active BOOLEAN NOT NULL DEFAULT 1
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    is_active BOOLEAN NOT NULL DEFAULT TRUE
 );
 
 -- Create indexes for users table

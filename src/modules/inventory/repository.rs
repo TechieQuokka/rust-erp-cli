@@ -644,6 +644,43 @@ impl InventoryRepository for PostgresInventoryRepository {
 }
 
 // Mock implementation for testing
+use std::sync::LazyLock;
+
+static MOCK_PRODUCTS: LazyLock<std::sync::Arc<std::sync::Mutex<HashMap<Uuid, Product>>>> =
+    LazyLock::new(|| {
+        let products = load_mock_products().unwrap_or_default();
+        std::sync::Arc::new(std::sync::Mutex::new(products))
+    });
+
+static MOCK_STOCK_MOVEMENTS: LazyLock<std::sync::Arc<std::sync::Mutex<Vec<StockMovement>>>> =
+    LazyLock::new(|| std::sync::Arc::new(std::sync::Mutex::new(Vec::new())));
+
+// Helper functions for file-based persistence
+fn get_mock_storage_path() -> std::path::PathBuf {
+    std::env::temp_dir().join("erp_mock_products.json")
+}
+
+fn load_mock_products() -> Option<HashMap<Uuid, Product>> {
+    let path = get_mock_storage_path();
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(products) = serde_json::from_str(&content) {
+                return serde_json::from_value(products).ok();
+            }
+        }
+    }
+    None
+}
+
+fn save_mock_products(products: &HashMap<Uuid, Product>) {
+    let path = get_mock_storage_path();
+    if let Ok(serialized) = serde_json::to_string_pretty(products) {
+        if let Err(e) = std::fs::write(&path, serialized) {
+            eprintln!("Warning: Failed to save mock products to disk: {}", e);
+        }
+    }
+}
+
 pub struct MockInventoryRepository {
     products: std::sync::Arc<std::sync::Mutex<HashMap<Uuid, Product>>>,
     stock_movements: std::sync::Arc<std::sync::Mutex<Vec<StockMovement>>>,
@@ -652,8 +689,8 @@ pub struct MockInventoryRepository {
 impl MockInventoryRepository {
     pub fn new() -> Self {
         Self {
-            products: std::sync::Arc::new(std::sync::Mutex::new(HashMap::new())),
-            stock_movements: std::sync::Arc::new(std::sync::Mutex::new(Vec::new())),
+            products: MOCK_PRODUCTS.clone(),
+            stock_movements: MOCK_STOCK_MOVEMENTS.clone(),
         }
     }
 }
@@ -664,6 +701,7 @@ impl InventoryRepository for MockInventoryRepository {
         let product = Product::new(request);
         let mut products = self.products.lock().unwrap();
         products.insert(product.id, product.clone());
+        save_mock_products(&products);
         Ok(product)
     }
 
@@ -710,6 +748,7 @@ impl InventoryRepository for MockInventoryRepository {
     async fn delete_product(&self, id: Uuid) -> ErpResult<()> {
         let mut products = self.products.lock().unwrap();
         if products.remove(&id).is_some() {
+            save_mock_products(&products);
             Ok(())
         } else {
             Err(ErpError::not_found_simple(format!(

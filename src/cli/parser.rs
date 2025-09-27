@@ -63,7 +63,7 @@ pub enum InventoryCommands {
         price: f64,
         /// 카테고리
         #[clap(long)]
-        category: String,
+        category: Option<String>,
         /// SKU (선택사항)
         #[clap(long)]
         sku: Option<String>,

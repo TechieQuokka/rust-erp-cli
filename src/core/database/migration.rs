@@ -104,7 +104,12 @@ impl PostgresMigrator {
             ON schema_migrations(executed_at);
         "#;
 
-        sqlx::query(sql).execute(&self.pool).await?;
+        let statements = self.split_sql_statements(sql);
+        for statement in statements {
+            if !statement.trim().is_empty() {
+                sqlx::query(&statement).execute(&self.pool).await?;
+            }
+        }
         info!("Initialized PostgreSQL migration schema");
         Ok(())
     }
@@ -126,7 +131,19 @@ impl PostgresMigrator {
 
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query(&migration.up_sql).execute(&mut *tx).await?;
+        // Split SQL statements by semicolon and execute each one separately
+        let statements = self.split_sql_statements(&migration.up_sql);
+        for statement in statements {
+            let statement = statement.trim();
+            if !statement.is_empty() && self.contains_sql_command(statement) {
+                sqlx::query(statement)
+                    .execute(&mut *tx)
+                    .await
+                    .map_err(|e| {
+                        anyhow::anyhow!("Failed to execute SQL statement '{}': {}", statement, e)
+                    })?;
+            }
+        }
 
         let execution_time = start_time.elapsed().as_millis() as i64;
 
@@ -155,7 +172,23 @@ impl PostgresMigrator {
         if let Some(down_sql) = &migration.down_sql {
             let mut tx = self.pool.begin().await?;
 
-            sqlx::query(down_sql).execute(&mut *tx).await?;
+            // Split SQL statements by semicolon and execute each one separately
+            let statements = self.split_sql_statements(down_sql);
+            for statement in statements {
+                let statement = statement.trim();
+                if !statement.is_empty() && !statement.starts_with("--") {
+                    sqlx::query(statement)
+                        .execute(&mut *tx)
+                        .await
+                        .map_err(|e| {
+                            anyhow::anyhow!(
+                                "Failed to execute rollback SQL statement '{}': {}",
+                                statement,
+                                e
+                            )
+                        })?;
+                }
+            }
 
             sqlx::query("DELETE FROM schema_migrations WHERE version = $1")
                 .bind(&migration.version)
@@ -191,6 +224,62 @@ impl PostgresMigrator {
 
         Ok(count > 0)
     }
+
+    /// Split SQL content into individual statements
+    fn split_sql_statements(&self, sql: &str) -> Vec<String> {
+        let mut statements = Vec::new();
+        let mut current_statement = String::new();
+        let mut in_string = false;
+        let mut escape_next = false;
+        let mut chars = sql.chars().peekable();
+
+        while let Some(ch) = chars.next() {
+            if escape_next {
+                current_statement.push(ch);
+                escape_next = false;
+                continue;
+            }
+
+            match ch {
+                '\\' => {
+                    escape_next = true;
+                    current_statement.push(ch);
+                }
+                '\'' => {
+                    in_string = !in_string;
+                    current_statement.push(ch);
+                }
+                ';' if !in_string => {
+                    let statement = current_statement.trim().to_string();
+                    if !statement.is_empty() {
+                        statements.push(statement);
+                    }
+                    current_statement.clear();
+                }
+                _ => {
+                    current_statement.push(ch);
+                }
+            }
+        }
+
+        // Add the last statement if it exists
+        let statement = current_statement.trim().to_string();
+        if !statement.is_empty() {
+            statements.push(statement);
+        }
+
+        statements
+    }
+
+    fn contains_sql_command(&self, sql: &str) -> bool {
+        let sql_upper = sql.to_uppercase();
+        sql_upper.contains("CREATE ")
+            || sql_upper.contains("DROP ")
+            || sql_upper.contains("ALTER ")
+            || sql_upper.contains("INSERT ")
+            || sql_upper.contains("UPDATE ")
+            || sql_upper.contains("DELETE ")
+    }
 }
 
 impl SqliteMigrator {
@@ -208,7 +297,12 @@ impl SqliteMigrator {
             ON schema_migrations(executed_at);
         "#;
 
-        sqlx::query(sql).execute(&self.pool).await?;
+        let statements = self.split_sql_statements(sql);
+        for statement in statements {
+            if !statement.trim().is_empty() {
+                sqlx::query(&statement).execute(&self.pool).await?;
+            }
+        }
         info!("Initialized SQLite migration schema");
         Ok(())
     }
@@ -251,7 +345,13 @@ impl SqliteMigrator {
 
         let mut tx = self.pool.begin().await?;
 
-        sqlx::query(&migration.up_sql).execute(&mut *tx).await?;
+        let statements = self.split_sql_statements(&migration.up_sql);
+        for statement in statements {
+            if !statement.trim().is_empty() {
+                tracing::debug!("Executing SQL statement: {}", statement);
+                sqlx::query(&statement).execute(&mut *tx).await?;
+            }
+        }
 
         let execution_time = start_time.elapsed().as_millis() as i64;
 
@@ -280,7 +380,12 @@ impl SqliteMigrator {
         if let Some(down_sql) = &migration.down_sql {
             let mut tx = self.pool.begin().await?;
 
-            sqlx::query(down_sql).execute(&mut *tx).await?;
+            let statements = self.split_sql_statements(down_sql);
+            for statement in statements {
+                if !statement.trim().is_empty() {
+                    sqlx::query(&statement).execute(&mut *tx).await?;
+                }
+            }
 
             sqlx::query("DELETE FROM schema_migrations WHERE version = ?")
                 .bind(&migration.version)
@@ -315,6 +420,58 @@ impl SqliteMigrator {
                 .await?;
 
         Ok(count > 0)
+    }
+
+    fn split_sql_statements(&self, sql: &str) -> Vec<String> {
+        let mut statements = Vec::new();
+        let mut current_statement = String::new();
+        let mut in_string = false;
+        let mut string_delimiter = '\0';
+        let mut escape_next = false;
+
+        for ch in sql.chars() {
+            if escape_next {
+                current_statement.push(ch);
+                escape_next = false;
+                continue;
+            }
+
+            match ch {
+                '\\' if in_string => {
+                    current_statement.push(ch);
+                    escape_next = true;
+                }
+                '\'' | '"' => {
+                    current_statement.push(ch);
+                    if !in_string {
+                        in_string = true;
+                        string_delimiter = ch;
+                    } else if ch == string_delimiter {
+                        in_string = false;
+                        string_delimiter = '\0';
+                    }
+                }
+                ';' if !in_string => {
+                    current_statement.push(ch);
+                    let statement = current_statement.trim().to_string();
+                    if !statement.is_empty() && statement != ";" {
+                        statements.push(statement);
+                    }
+                    current_statement.clear();
+                }
+                _ => {
+                    current_statement.push(ch);
+                }
+            }
+        }
+
+        // Add the last statement if it exists
+        let statement = current_statement.trim().to_string();
+        if !statement.is_empty() {
+            statements.push(statement);
+        }
+
+        statements
     }
 }
 
