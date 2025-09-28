@@ -14,6 +14,33 @@ use sqlx::Row;
 use std::collections::HashMap;
 use uuid::Uuid;
 
+// Helper function to build ORDER BY clause
+fn build_sort_clause(sort_by: &Option<String>, sort_order: &Option<String>) -> (String, String) {
+    let valid_sort_fields = [
+        "sku",
+        "name",
+        "category",
+        "price",
+        "cost",
+        "quantity",
+        "created_at",
+    ];
+
+    let sort_field = sort_by
+        .as_ref()
+        .filter(|field| valid_sort_fields.contains(&field.as_str()))
+        .map(|field| field.as_str())
+        .unwrap_or("name");
+
+    let sort_order = sort_order
+        .as_ref()
+        .filter(|order| order.as_str() == "asc" || order.as_str() == "desc")
+        .map(|order| order.to_uppercase())
+        .unwrap_or_else(|| "ASC".to_string());
+
+    (sort_field.to_string(), sort_order)
+}
+
 #[async_trait]
 pub trait InventoryRepository: Send + Sync {
     async fn create_product(&self, request: CreateProductRequest) -> ErpResult<Product>;
@@ -206,9 +233,12 @@ impl InventoryRepository for PostgresInventoryRepository {
         param_count += 1;
         let offset_param = param_count;
 
+        // Build ORDER BY clause
+        let (sort_field, sort_order) = build_sort_clause(&filter.sort_by, &filter.sort_order);
+
         let main_query = format!(
-            "SELECT * FROM products {} ORDER BY created_at DESC LIMIT ${} OFFSET ${}",
-            where_clause, limit_param, offset_param
+            "SELECT * FROM products {} ORDER BY {} {} LIMIT ${} OFFSET ${}",
+            where_clause, sort_field, sort_order, limit_param, offset_param
         );
 
         // This is a simplified version - in practice, you'd need to properly bind all parameters
@@ -720,13 +750,36 @@ impl InventoryRepository for MockInventoryRepository {
 
     async fn list_products(
         &self,
-        _filter: &InventoryFilter,
+        filter: &InventoryFilter,
     ) -> ErpResult<(Vec<InventoryItem>, i64)> {
         let products = self.products.lock().unwrap();
-        let items: Vec<InventoryItem> = products
+        let mut items: Vec<InventoryItem> = products
             .values()
             .map(|p| InventoryItem::from_product(p.clone()))
             .collect();
+
+        // Apply sorting
+        let (sort_field, sort_order) = build_sort_clause(&filter.sort_by, &filter.sort_order);
+
+        items.sort_by(|a, b| {
+            let comparison = match sort_field.as_str() {
+                "sku" => a.product.sku.cmp(&b.product.sku),
+                "name" => a.product.name.cmp(&b.product.name),
+                "category" => a.product.category.cmp(&b.product.category),
+                "price" => a.product.price.cmp(&b.product.price),
+                "cost" => a.product.cost.cmp(&b.product.cost),
+                "quantity" => a.product.quantity.cmp(&b.product.quantity),
+                "created_at" => a.product.created_at.cmp(&b.product.created_at),
+                _ => a.product.name.cmp(&b.product.name), // fallback to name
+            };
+
+            if sort_order == "DESC" {
+                comparison.reverse()
+            } else {
+                comparison
+            }
+        });
+
         let total = items.len() as i64;
         Ok((items, total))
     }
