@@ -871,6 +871,12 @@ pub struct MockBackupRepository {
     backups: std::sync::Arc<std::sync::Mutex<Vec<BackupMetadata>>>,
 }
 
+impl Default for MockBackupRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockBackupRepository {
     pub fn new() -> Self {
         Self {

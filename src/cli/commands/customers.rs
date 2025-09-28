@@ -28,15 +28,19 @@ impl CustomerHandler {
                 email,
                 phone,
                 address,
-                customer_type,
-            } => Self::handle_add(&service, name, email, phone, address, customer_type).await,
+                company,
+                notes,
+            } => Self::handle_add(&service, name, email, phone, address, company, notes).await,
 
             CustomerCommands::List {
                 search,
                 customer_type,
                 page,
                 limit,
-            } => Self::handle_list(&service, search, customer_type, *page, *limit).await,
+                format,
+                sort_by,
+                order,
+            } => Self::handle_list(&service, search, customer_type, *page, *limit, format, sort_by, order).await,
 
             CustomerCommands::Update {
                 id,
@@ -59,10 +63,11 @@ impl CustomerHandler {
     async fn handle_add(
         service: &CustomerService,
         name: &str,
-        email: &Option<String>,
+        email: &str,
         phone: &Option<String>,
         address: &Option<String>,
-        customer_type: &Option<String>,
+        company: &Option<String>,
+        _notes: &Option<String>,
     ) -> ErpResult<()> {
         // Parse full name
         let parts: Vec<&str> = name.split_whitespace().collect();
@@ -76,24 +81,14 @@ impl CustomerHandler {
         let last_name = parts[1..].join(" ");
 
         // Validate required email
-        let email = email
-            .as_ref()
-            .ok_or_else(|| ErpError::validation_simple("Email is required"))?;
-        let validated_email = CliValidator::validate_email_optional(&Some(email.clone()))?
+        let validated_email = CliValidator::validate_email_optional(&Some(email.to_string()))?
             .ok_or_else(|| ErpError::validation_simple("Valid email is required"))?;
 
-        // Parse customer type
-        let customer_type = match customer_type.as_deref() {
-            Some("individual") | Some("i") => CustomerType::Individual,
-            Some("business") | Some("b") => CustomerType::Business,
-            Some("wholesale") | Some("w") => CustomerType::Wholesale,
-            Some("retail") | Some("r") => CustomerType::Retail,
-            Some(_) => {
-                return Err(ErpError::validation_simple(
-                    "Invalid customer type. Use: individual, business, wholesale, retail",
-                ))
-            }
-            None => CustomerType::Individual,
+        // Determine customer type based on company field
+        let customer_type = if company.is_some() {
+            CustomerType::Business
+        } else {
+            CustomerType::Individual
         };
 
         // Validate phone
@@ -174,6 +169,9 @@ impl CustomerHandler {
         customer_type: &Option<String>,
         page: u32,
         limit: u32,
+        _format: &str,
+        _sort_by: &str,
+        _order: &str,
     ) -> ErpResult<()> {
         // Validate pagination
         let (validated_page, validated_limit) = CliValidator::validate_pagination(page, limit)?;

@@ -540,12 +540,15 @@ impl Default for InventoryFilter {
             stock_status: None,
             sku: None,
             name: None,
+            search_query: None,
             min_quantity: None,
             max_quantity: None,
             low_stock_only: None,
             location: None,
             page: Some(1),
             limit: Some(20),
+            sort_by: None,
+            sort_order: None,
         }
     }
 }

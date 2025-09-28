@@ -62,12 +62,15 @@ pub struct InventoryFilter {
     pub stock_status: Option<StockStatus>,
     pub sku: Option<String>,
     pub name: Option<String>,
+    pub search_query: Option<String>,
     pub min_quantity: Option<i32>,
     pub max_quantity: Option<i32>,
     pub low_stock_only: Option<bool>,
     pub location: Option<String>,
     pub page: Option<u32>,
     pub limit: Option<u32>,
+    pub sort_by: Option<String>,
+    pub sort_order: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

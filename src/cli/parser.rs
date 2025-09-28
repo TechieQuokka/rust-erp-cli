@@ -61,6 +61,9 @@ pub enum InventoryCommands {
         /// 가격
         #[clap(long)]
         price: f64,
+        /// 원가 (선택사항, 기본값: 가격의 70%)
+        #[clap(long)]
+        cost: Option<f64>,
         /// 카테고리
         #[clap(long)]
         category: Option<String>,
@@ -82,12 +85,24 @@ pub enum InventoryCommands {
         /// 카테고리 필터
         #[clap(long)]
         category: Option<String>,
+        /// 제품명 또는 SKU 검색
+        #[clap(long)]
+        search: Option<String>,
         /// 페이지 번호
         #[clap(long, default_value = "1")]
         page: u32,
         /// 페이지당 아이템 수
         #[clap(long, default_value = "20")]
         limit: u32,
+        /// 출력 형식 (table, json, csv)
+        #[clap(long, default_value = "table")]
+        format: String,
+        /// 정렬 기준 (name, sku, quantity, price, cost, created_at)
+        #[clap(long, default_value = "name")]
+        sort_by: String,
+        /// 정렬 순서 (asc, desc)
+        #[clap(long, default_value = "asc")]
+        order: String,
     },
     /// 제품 정보 수정
     Update {
@@ -119,6 +134,9 @@ pub enum InventoryCommands {
         /// 최소 재고량 임계값
         #[clap(long)]
         threshold: Option<i32>,
+        /// 출력 형식 (table, json, csv)
+        #[clap(long, default_value = "table")]
+        format: String,
     },
 }
 
@@ -130,16 +148,19 @@ pub enum CustomerCommands {
         name: String,
         /// 이메일
         #[clap(long)]
-        email: Option<String>,
+        email: String,
         /// 전화번호
         #[clap(long)]
         phone: Option<String>,
         /// 주소
         #[clap(long)]
         address: Option<String>,
-        /// 고객 타입 (individual, business)
+        /// 회사명 (개인 고객인 경우 생략)
         #[clap(long)]
-        customer_type: Option<String>,
+        company: Option<String>,
+        /// 고객 관련 메모
+        #[clap(long)]
+        notes: Option<String>,
     },
     /// 고객 목록 조회
     List {
@@ -155,6 +176,15 @@ pub enum CustomerCommands {
         /// 페이지당 아이템 수
         #[clap(long, default_value = "20")]
         limit: u32,
+        /// 출력 형식 (table, json, csv)
+        #[clap(long, default_value = "table")]
+        format: String,
+        /// 정렬 기준 (name, email, created_at)
+        #[clap(long, default_value = "name")]
+        sort_by: String,
+        /// 정렬 순서 (asc, desc)
+        #[clap(long, default_value = "asc")]
+        order: String,
     },
     /// 고객 정보 수정
     Update {
@@ -333,6 +363,9 @@ pub enum ConfigCommands {
         /// 필터 패턴
         #[clap(long)]
         filter: Option<String>,
+        /// 출력 형식 (table, json, yaml)
+        #[clap(long, default_value = "table")]
+        format: String,
     },
     /// 설정 파일 경로 표시
     Path,

@@ -7,6 +7,7 @@ use crate::modules::inventory::{
     UpdateInventoryItemRequest, InventoryModule,
 };
 use crate::utils::error::ErpResult;
+use crate::utils::inventory_formatter::InventoryFormatter;
 use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
 use tracing::{error, info};
 use uuid::Uuid;
@@ -20,6 +21,7 @@ impl InventoryHandler {
                 name,
                 quantity,
                 price,
+                cost,
                 category,
                 sku,
                 min_stock,
@@ -29,6 +31,7 @@ impl InventoryHandler {
                     name,
                     *quantity,
                     *price,
+                    cost,
                     category,
                     sku,
                     min_stock,
@@ -40,9 +43,15 @@ impl InventoryHandler {
             InventoryCommands::List {
                 low_stock,
                 category,
+                search,
                 page,
                 limit,
-            } => Self::handle_list(*low_stock, category, *page, *limit, config).await,
+                format,
+                sort_by,
+                order,
+            } => Self::handle_list(
+                *low_stock, category, search, *page, *limit, format, sort_by, order, config
+            ).await,
             InventoryCommands::Update {
                 id,
                 name,
@@ -51,7 +60,7 @@ impl InventoryHandler {
                 category,
             } => Self::handle_update(id, name, quantity, price, category).await,
             InventoryCommands::Remove { id, force } => Self::handle_remove(id, *force).await,
-            InventoryCommands::LowStock { threshold } => Self::handle_low_stock(threshold).await,
+            InventoryCommands::LowStock { threshold, format } => Self::handle_low_stock(threshold, format).await,
         }
     }
 
@@ -59,6 +68,7 @@ impl InventoryHandler {
         name: &str,
         quantity: i32,
         price: f64,
+        cost: &Option<f64>,
         category: &Option<String>,
         sku: &Option<String>,
         min_stock: &Option<i32>,
@@ -71,6 +81,12 @@ impl InventoryHandler {
         let validated_name = CliValidator::validate_product_name(name)?;
         let validated_quantity = CliValidator::validate_quantity(quantity)?;
         let validated_price = CliValidator::validate_price(price)?;
+
+        let validated_cost = match cost {
+            Some(c) => Some(CliValidator::validate_price(*c)?),
+            None => None,
+        };
+
         let validated_category = match category {
             Some(cat) => CliValidator::validate_category(cat)?,
             None => "general".to_string(), // 기본 카테고리
@@ -92,7 +108,7 @@ impl InventoryHandler {
             description: description.clone(),
             category: validated_category.clone(),
             price: validated_price,
-            cost: None, // Will be set to 70% of price by default
+            cost: validated_cost,
             quantity: validated_quantity,
             min_stock: validated_min_stock.unwrap(),
             max_stock: None,
@@ -154,13 +170,17 @@ impl InventoryHandler {
     async fn handle_list(
         low_stock: bool,
         category: &Option<String>,
+        search: &Option<String>,
         page: u32,
         limit: u32,
+        format: &str,
+        sort_by: &str,
+        order: &str,
         _config: &AppConfig,
     ) -> ErpResult<()> {
         info!(
-            "Listing products - low_stock: {}, category: {:?}",
-            low_stock, category
+            "Listing products - low_stock: {}, category: {:?}, search: {:?}, format: {}, sort_by: {}, order: {}",
+            low_stock, category, search, format, sort_by, order
         );
 
         // 입력 검증
@@ -174,9 +194,12 @@ impl InventoryHandler {
         // 필터 생성
         let _filter = InventoryFilter {
             category: validated_category.clone(),
+            search_query: search.clone(),
             low_stock_only: if low_stock { Some(true) } else { None },
             page: Some(validated_page),
             limit: Some(validated_limit),
+            sort_by: Some(sort_by.to_string()),
+            sort_order: Some(order.to_string()),
             ..Default::default()
         };
 
@@ -186,68 +209,92 @@ impl InventoryHandler {
         match response {
             Ok(response) => {
                 if response.items.is_empty() {
-                    println!("📋 조건에 맞는 제품이 없습니다.");
+                    match format {
+                        "json" => println!("{{\"items\": [], \"total\": 0}}"),
+                        "csv" => println!("SKU,제품명,카테고리,가격,원가,수량,사용가능수량,예약수량,최소재고,상태,재고상태,위치,마진율"),
+                        "yaml" => println!("items: []\ntotal: 0"),
+                        _ => println!("📋 조건에 맞는 제품이 없습니다."),
+                    }
                     return Ok(());
                 }
 
-                println!(
-                    "📋 제품 목록 ({} / {} 개)",
-                    response.items.len(),
-                    response.total
-                );
-                println!(
-                    "   🔴 재고부족: {} | ❌ 품절: {} | 📄 페이지: {} ({}/페이지)",
-                    response.low_stock_count,
-                    response.out_of_stock_count,
-                    validated_page,
-                    validated_limit
-                );
-                println!();
+                match format {
+                    "json" => {
+                        let json_output = InventoryFormatter::to_json(&response)?;
+                        println!("{}", json_output);
+                    }
+                    "csv" => {
+                        let csv_output = InventoryFormatter::to_csv(&response)?;
+                        println!("{}", csv_output);
+                    }
+                    "yaml" => {
+                        let yaml_output = InventoryFormatter::to_yaml(&response)?;
+                        println!("{}", yaml_output);
+                    }
+                    _ => {
+                        // Default table format
+                        println!(
+                            "📋 제품 목록 ({} / {} 개)",
+                            response.items.len(),
+                            response.total
+                        );
+                        println!(
+                            "   🔴 재고부족: {} | ❌ 품절: {} | 📄 페이지: {} ({}/페이지)",
+                            response.low_stock_count,
+                            response.out_of_stock_count,
+                            validated_page,
+                            validated_limit
+                        );
+                        println!();
 
-                let mut table = Table::new();
-                table
-                    .load_preset(UTF8_FULL)
-                    .apply_modifier(UTF8_ROUND_CORNERS);
-                table.set_header(vec![
-                    "SKU",
-                    "제품명",
-                    "카테고리",
-                    "가격",
-                    "수량",
-                    "상태",
-                    "마진",
-                ]);
+                        let mut table = Table::new();
+                        table
+                            .load_preset(UTF8_FULL)
+                            .apply_modifier(UTF8_ROUND_CORNERS);
+                        table.set_header(vec![
+                            "SKU",
+                            "제품명",
+                            "카테고리",
+                            "가격",
+                            "원가",
+                            "수량",
+                            "상태",
+                            "마진",
+                        ]);
 
-                for item in &response.items {
-                    let status_icon = match item.stock_status {
-                        StockStatus::OutOfStock => "❌",
-                        StockStatus::LowStock => "🔴",
-                        StockStatus::InStock => "✅",
-                        StockStatus::Overstocked => "📦",
-                    };
+                        for item in &response.items {
+                            let status_icon = match item.stock_status {
+                                StockStatus::OutOfStock => "❌",
+                                StockStatus::LowStock => "🔴",
+                                StockStatus::InStock => "✅",
+                                StockStatus::Overstocked => "📦",
+                            };
 
-                    table.add_row(vec![
-                        &item.sku,
-                        &item.name,
-                        &item.category,
-                        &format!("₩{:.2}", item.price),
-                        &format!("{} {}", item.quantity, status_icon),
-                        &format!("{}", item.stock_status),
-                        &format!("{:.1}%", item.margin_percentage),
-                    ]);
-                }
+                            table.add_row(vec![
+                                &item.sku,
+                                &item.name,
+                                &item.category,
+                                &format!("₩{:.2}", item.price),
+                                &format!("₩{:.2}", item.cost),
+                                &format!("{} {}", item.quantity, status_icon),
+                                &format!("{}", item.stock_status),
+                                &format!("{:.1}%", item.margin_percentage),
+                            ]);
+                        }
 
-                println!("{}", table);
+                        println!("{}", table);
 
-                // 페이지네이션 정보
-                let total_pages =
-                    (response.total + validated_limit as i64 - 1) / validated_limit as i64;
-                if total_pages > 1 {
-                    println!();
-                    println!(
-                        "📖 페이지 {} / {} (전체 {} 개)",
-                        validated_page, total_pages, response.total
-                    );
+                        // 페이지네이션 정보
+                        let total_pages =
+                            (response.total + validated_limit as i64 - 1) / validated_limit as i64;
+                        if total_pages > 1 {
+                            println!();
+                            println!(
+                                "📖 페이지 {} / {} (전체 {} 개)",
+                                validated_page, total_pages, response.total
+                            );
+                        }
+                    }
                 }
 
                 Ok(())
@@ -416,7 +463,7 @@ impl InventoryHandler {
         }
     }
 
-    async fn handle_low_stock(threshold: &Option<i32>) -> ErpResult<()> {
+    async fn handle_low_stock(threshold: &Option<i32>, format: &str) -> ErpResult<()> {
         info!("Getting low stock alerts with threshold: {:?}", threshold);
 
         let validated_threshold = match threshold {
@@ -431,49 +478,72 @@ impl InventoryHandler {
         ) {
             Ok(alerts) => {
                 if alerts.is_empty() {
-                    println!("✅ 저재고 알림이 없습니다!");
+                    match format {
+                        "json" => println!("[]"),
+                        "csv" => println!("SKU,제품명,카테고리,현재수량,최소수량,부족수량"),
+                        "yaml" => println!("[]"),
+                        _ => println!("✅ 저재고 알림이 없습니다!"),
+                    }
                     return Ok(());
                 }
 
-                let threshold_text = match validated_threshold {
-                    Some(t) => format!("임계값 {} 이하", t),
-                    None => "최소 재고 수준 이하".to_string(),
-                };
+                match format {
+                    "json" => {
+                        let json_output = InventoryFormatter::low_stock_to_json(&alerts)?;
+                        println!("{}", json_output);
+                    }
+                    "csv" => {
+                        let csv_output = InventoryFormatter::low_stock_to_csv(&alerts)?;
+                        println!("{}", csv_output);
+                    }
+                    "yaml" => {
+                        match serde_yaml::to_string(&alerts) {
+                            Ok(yaml) => println!("{}", yaml),
+                            Err(e) => return Err(crate::utils::error::ErpError::internal(format!("YAML 변환 오류: {}", e))),
+                        }
+                    }
+                    _ => {
+                        let threshold_text = match validated_threshold {
+                            Some(t) => format!("임계값 {} 이하", t),
+                            None => "최소 재고 수준 이하".to_string(),
+                        };
 
-                println!(
-                    "🔴 저재고 알림 ({}) - {} 개 제품",
-                    threshold_text,
-                    alerts.len()
-                );
-                println!();
+                        println!(
+                            "🔴 저재고 알림 ({}) - {} 개 제품",
+                            threshold_text,
+                            alerts.len()
+                        );
+                        println!();
 
-                let mut table = Table::new();
-                table
-                    .load_preset(UTF8_FULL)
-                    .apply_modifier(UTF8_ROUND_CORNERS);
-                table.set_header(vec![
-                    "SKU",
-                    "제품명",
-                    "카테고리",
-                    "현재수량",
-                    "최소수량",
-                    "부족수량",
-                ]);
+                        let mut table = Table::new();
+                        table
+                            .load_preset(UTF8_FULL)
+                            .apply_modifier(UTF8_ROUND_CORNERS);
+                        table.set_header(vec![
+                            "SKU",
+                            "제품명",
+                            "카테고리",
+                            "현재수량",
+                            "최소수량",
+                            "부족수량",
+                        ]);
 
-                for alert in &alerts {
-                    table.add_row(vec![
-                        &alert.sku,
-                        &alert.name,
-                        &alert.category,
-                        &alert.current_quantity.to_string(),
-                        &alert.min_stock_level.to_string(),
-                        &alert.shortfall.to_string(),
-                    ]);
+                        for alert in &alerts {
+                            table.add_row(vec![
+                                &alert.sku,
+                                &alert.name,
+                                &alert.category,
+                                &alert.current_quantity.to_string(),
+                                &alert.min_stock_level.to_string(),
+                                &alert.shortfall.to_string(),
+                            ]);
+                        }
+
+                        println!("{}", table);
+                        println!();
+                        println!("💡 재주문 권장: 부족 수량만큼 주문하시기 바랍니다.");
+                    }
                 }
-
-                println!("{}", table);
-                println!();
-                println!("💡 재주문 권장: 부족 수량만큼 주문하시기 바랍니다.");
 
                 Ok(())
             }

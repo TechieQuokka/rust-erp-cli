@@ -8,6 +8,7 @@ license = "MIT"
 repository = "https://github.com/example/erp-cli"
 keywords = ["erp", "cli", "business", "inventory", "sales"]
 categories = ["command-line-utilities", "database"]
+default-run = "erp"
 
 [[bin]]
 name = "erp"
@@ -28,6 +29,8 @@ sqlx = { version = "0.7", features = ["runtime-tokio-rustls", "postgres", "sqlit
 # 직렬화/역직렬화
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
+serde_yaml = "0.9"
+quick-xml = { version = "0.31", features = ["serialize"] }
 
 # 설정 관리
 config = "0.14"
