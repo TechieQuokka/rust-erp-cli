@@ -4,6 +4,7 @@ use crate::modules::config::models::*;
 use crate::modules::config::repository::ConfigRepositoryTrait;
 use crate::utils::error::{ErpError, ErpResult};
 use crate::utils::validation;
+use rust_decimal::Decimal;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tracing::{info, warn};
@@ -376,6 +377,62 @@ impl ConfigService {
             ));
         }
 
+        Ok(())
+    }
+
+    /// 세금률 조회 (기본값: 10.0% - 한국 부가세)
+    pub async fn get_tax_rate(&self) -> ErpResult<Decimal> {
+        const DEFAULT_TAX_RATE: &str = "10.0";
+
+        match self.get_config("tax_rate").await? {
+            Some(config) => {
+                config.value.parse::<f64>()
+                    .map_err(|_| ErpError::validation("tax_rate", "Invalid tax rate format"))
+                    .and_then(|rate| {
+                        if rate < 0.0 || rate > 100.0 {
+                            Err(ErpError::validation("tax_rate", "Tax rate must be between 0.0 and 100.0"))
+                        } else {
+                            Ok(Decimal::from_f64_retain(rate).unwrap_or(Decimal::from_f64_retain(10.0).unwrap()))
+                        }
+                    })
+            }
+            None => {
+                // 기본값 설정
+                info!("Tax rate not configured, using default: {}%", DEFAULT_TAX_RATE);
+                Ok(Decimal::from_f64_retain(10.0).unwrap())
+            }
+        }
+    }
+
+    /// 세금률 설정
+    pub async fn set_tax_rate(&self, rate: f64) -> ErpResult<()> {
+        if rate < 0.0 || rate > 100.0 {
+            return Err(ErpError::validation("tax_rate", "Tax rate must be between 0.0 and 100.0"));
+        }
+
+        let request = CreateConfigRequest {
+            key: "tax_rate".to_string(),
+            value: rate.to_string(),
+            description: Some("Tax rate percentage for sales orders".to_string()),
+            category: "system".to_string(),
+            is_secret: false,
+            is_readonly: false,
+        };
+
+        // 기존 설정이 있으면 업데이트, 없으면 생성
+        if self.repository.key_exists("tax_rate").await? {
+            let update_request = UpdateConfigRequest {
+                value: Some(rate.to_string()),
+                description: Some("Tax rate percentage for sales orders".to_string()),
+                category: Some("system".to_string()),
+                is_secret: Some(false),
+            };
+            self.update_config("tax_rate", update_request).await?;
+        } else {
+            self.create_config(request).await?;
+        }
+
+        info!("Tax rate updated to: {}%", rate);
         Ok(())
     }
 }

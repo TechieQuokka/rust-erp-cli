@@ -242,13 +242,13 @@ pub enum SalesCommands {
     CreateOrder {
         /// 고객 ID
         #[clap(long)]
-        customer: String,
-        /// 제품 ID와 수량 (형식: product_id:quantity)
+        customer_id: String,
+        /// 제품 SKU
         #[clap(long)]
-        items: Vec<String>,
-        /// 할인율 (0-100)
+        product_sku: String,
+        /// 수량
         #[clap(long)]
-        discount: Option<f64>,
+        quantity: i32,
         /// 주문 메모
         #[clap(long)]
         notes: Option<String>,

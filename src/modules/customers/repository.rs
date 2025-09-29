@@ -549,36 +549,37 @@ impl CustomerRepository for PostgresCustomerRepository {
 
     async fn delete_customer(&self, id: Uuid) -> ErpResult<()> {
         // Start a transaction to ensure atomicity
-        let mut tx = self.pool.begin().await
+        let mut tx = self
+            .pool
+            .begin()
+            .await
             .map_err(|e| ErpError::database(format!("Failed to start transaction: {}", e)))?;
 
         // First, delete all customer addresses
-        sqlx::query!(
-            "DELETE FROM customer_addresses WHERE customer_id = $1",
-            id
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| ErpError::database(format!("Failed to delete customer addresses: {}", e)))?;
+        sqlx::query!("DELETE FROM customer_addresses WHERE customer_id = $1", id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| {
+                ErpError::database(format!("Failed to delete customer addresses: {}", e))
+            })?;
 
         // Then delete the customer
-        let result = sqlx::query!(
-            "DELETE FROM customers WHERE id = $1",
-            id
-        )
-        .execute(&mut *tx)
-        .await
-        .map_err(|e| ErpError::database(format!("Failed to delete customer: {}", e)))?;
+        let result = sqlx::query!("DELETE FROM customers WHERE id = $1", id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to delete customer: {}", e)))?;
 
         // Check if customer was actually deleted
         if result.rows_affected() == 0 {
-            tx.rollback().await
-                .map_err(|e| ErpError::database(format!("Failed to rollback transaction: {}", e)))?;
+            tx.rollback().await.map_err(|e| {
+                ErpError::database(format!("Failed to rollback transaction: {}", e))
+            })?;
             return Err(ErpError::not_found_simple("Customer not found"));
         }
 
         // Commit the transaction
-        tx.commit().await
+        tx.commit()
+            .await
             .map_err(|e| ErpError::database(format!("Failed to commit transaction: {}", e)))?;
 
         Ok(())

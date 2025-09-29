@@ -48,6 +48,7 @@ pub trait SalesRepository: Send + Sync {
     async fn calculate_order_totals(
         &self,
         order_id: Uuid,
+        tax_rate: Decimal,
     ) -> ErpResult<(Decimal, Decimal, Decimal)>;
 }
 
@@ -560,6 +561,7 @@ impl SalesRepository for PostgresSalesRepository {
     async fn calculate_order_totals(
         &self,
         order_id: Uuid,
+        tax_rate: Decimal,
     ) -> ErpResult<(Decimal, Decimal, Decimal)> {
         let query = r#"
             SELECT
@@ -577,7 +579,6 @@ impl SalesRepository for PostgresSalesRepository {
 
         let subtotal: Decimal = row.get("subtotal");
         let total_discount: Decimal = row.get("total_discount");
-        let tax_rate = Decimal::new(10, 2);
         let tax_amount = subtotal * tax_rate / Decimal::from(100);
 
         Ok((subtotal, total_discount, tax_amount))
@@ -801,11 +802,12 @@ impl SalesRepository for MockSalesRepository {
     async fn calculate_order_totals(
         &self,
         order_id: Uuid,
+        tax_rate: Decimal,
     ) -> ErpResult<(Decimal, Decimal, Decimal)> {
         let items = self.get_order_items(order_id).await?;
         let subtotal: Decimal = items.iter().map(|i| i.line_total).sum();
         let total_discount: Decimal = items.iter().map(|i| i.discount).sum();
-        let tax_amount = subtotal * Decimal::new(10, 2) / Decimal::from(100);
+        let tax_amount = subtotal * tax_rate / Decimal::from(100);
         Ok((subtotal, total_discount, tax_amount))
     }
 }

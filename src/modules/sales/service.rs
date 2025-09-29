@@ -4,6 +4,7 @@ use uuid::Uuid;
 
 use super::models::*;
 use super::repository::SalesRepository;
+use crate::modules::config::service::ConfigService;
 use crate::modules::customers::service::CustomerService;
 use crate::modules::inventory::service::InventoryService;
 use crate::utils::error::{ErpError, ErpResult};
@@ -12,6 +13,7 @@ use crate::utils::validation::ValidationService;
 pub struct SalesService {
     repository: Box<dyn SalesRepository>,
     _validation_service: ValidationService,
+    config_service: Option<ConfigService>,
     customer_service: Option<CustomerService>,
     inventory_service: Option<Box<dyn InventoryService>>,
 }
@@ -24,9 +26,15 @@ impl SalesService {
         Self {
             repository,
             _validation_service: validation_service,
+            config_service: None,
             customer_service: None,
             inventory_service: None,
         }
+    }
+
+    pub fn with_config_service(mut self, config_service: ConfigService) -> Self {
+        self.config_service = Some(config_service);
+        self
     }
 
     pub fn with_customer_service(mut self, customer_service: CustomerService) -> Self {
@@ -104,7 +112,14 @@ impl SalesService {
 
         let order_discount = request.discount_amount.unwrap_or(Decimal::ZERO);
         let subtotal_after_discount = subtotal - order_discount;
-        let tax_rate = Decimal::new(10, 2);
+
+        // Get tax rate from config service or use default
+        let tax_rate = if let Some(config_service) = &self.config_service {
+            config_service.get_tax_rate().await.unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
+        } else {
+            Decimal::from_f64_retain(10.0).unwrap() // Default 10%
+        };
+
         let tax_amount = subtotal_after_discount * tax_rate / Decimal::from(100);
         let grand_total = subtotal_after_discount + tax_amount;
 
@@ -151,8 +166,16 @@ impl SalesService {
         };
 
         let items = self.repository.get_order_items_with_products(id).await?;
+
+        // Get tax rate from config service or use default
+        let tax_rate = if let Some(config_service) = &self.config_service {
+            config_service.get_tax_rate().await.unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
+        } else {
+            Decimal::from_f64_retain(10.0).unwrap() // Default 10%
+        };
+
         let (subtotal, total_discount, tax_amount) =
-            self.repository.calculate_order_totals(id).await?;
+            self.repository.calculate_order_totals(id, tax_rate).await?;
 
         Ok(Some(OrderSummary {
             order,
@@ -174,8 +197,16 @@ impl SalesService {
             .repository
             .get_order_items_with_products(order.id)
             .await?;
+
+        // Get tax rate from config service or use default
+        let tax_rate = if let Some(config_service) = &self.config_service {
+            config_service.get_tax_rate().await.unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
+        } else {
+            Decimal::from_f64_retain(10.0).unwrap() // Default 10%
+        };
+
         let (subtotal, total_discount, tax_amount) =
-            self.repository.calculate_order_totals(order.id).await?;
+            self.repository.calculate_order_totals(order.id, tax_rate).await?;
 
         Ok(Some(OrderSummary {
             order,

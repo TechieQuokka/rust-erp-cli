@@ -1,14 +1,16 @@
 use chrono::{DateTime, Utc};
 use comfy_table::{Cell, Color, Table};
-use rust_decimal::Decimal;
 use std::str::FromStr;
 use uuid::Uuid;
 
 use crate::cli::parser::SalesCommands;
 use crate::core::config::AppConfig;
 use crate::core::database::connection::DatabaseManager;
+use crate::modules::config::{ConfigRepository, ConfigService};
 use crate::modules::customers::{CustomerService, PostgresCustomerRepository};
-use crate::modules::inventory::{InventoryServiceImpl, PostgresInventoryRepository};
+use crate::modules::inventory::{
+    InventoryService, InventoryServiceImpl, PostgresInventoryRepository,
+};
 use crate::modules::sales::*;
 use crate::utils::error::{ErpError, ErpResult};
 use crate::utils::validation::ValidationService;
@@ -32,16 +34,23 @@ impl SalesHandler {
             std::sync::Arc::new(PostgresInventoryRepository::new(pool.clone()));
         let inventory_service = InventoryServiceImpl::new(inventory_repository);
 
+        let config_repository = std::sync::Arc::new(ConfigRepository::new(connection.clone()));
+        let config_service = ConfigService::new(config_repository);
+
         let sales_service = SalesService::new(sales_repository, validation_service)
+            .with_config_service(config_service)
             .with_customer_service(customer_service)
             .with_inventory_service(Box::new(inventory_service));
         match cmd {
             SalesCommands::CreateOrder {
-                customer,
-                items,
-                discount,
+                customer_id,
+                product_sku,
+                quantity,
                 notes,
-            } => Self::handle_create_order(&sales_service, customer, items, discount, notes).await,
+            } => {
+                Self::handle_create_order(&sales_service, customer_id, product_sku, quantity, notes)
+                    .await
+            }
             SalesCommands::ListOrders {
                 status,
                 customer,
@@ -74,49 +83,53 @@ impl SalesHandler {
 
     async fn handle_create_order(
         sales_service: &SalesService,
-        customer: &str,
-        items: &[String],
-        discount: &Option<f64>,
+        customer_id: &str,
+        product_sku: &str,
+        quantity: &i32,
         notes: &Option<String>,
     ) -> ErpResult<()> {
-        let customer_id = Uuid::from_str(customer)
-            .map_err(|_| ErpError::validation("customer_id", "Invalid customer ID format"))?;
+        // Try to parse as UUID first, if that fails, assume it's a customer code
+        let customer_uuid = if let Ok(uuid) = Uuid::from_str(customer_id) {
+            uuid
+        } else {
+            // It's likely a customer code, need to look up the UUID
+            let connection = DatabaseManager::get_connection().await?;
+            let pool = connection.pool().clone();
+            let customer_repository = std::sync::Arc::new(PostgresCustomerRepository::new(
+                std::sync::Arc::new(pool.clone()),
+            ));
+            let customer_service = CustomerService::new(customer_repository);
 
-        let mut order_items = Vec::new();
-        for item_str in items {
-            let parts: Vec<&str> = item_str.split(':').collect();
-            if parts.len() != 2 {
-                return Err(ErpError::validation(
-                    "item",
-                    "format should be 'product_id:quantity'",
-                ));
-            }
+            // Get customer by code
+            let customer = customer_service.get_customer_by_code(customer_id).await?;
 
-            let product_id = Uuid::from_str(parts[0])
-                .map_err(|_| ErpError::validation("product_id", "invalid format"))?;
-            let quantity = parts[1]
-                .parse::<i32>()
-                .map_err(|_| ErpError::validation("quantity", "invalid format"))?;
+            customer.id
+        };
 
-            order_items.push(OrderItemRequest {
-                product_id,
-                quantity,
-                unit_price: None,
-                discount: None,
-            });
-        }
+        // First, we need to find the product by SKU to get its ID
+        // Reuse the connection if we already have one, otherwise create new
+        let connection = DatabaseManager::get_connection().await?;
+        let pool = connection.pool().clone();
+        let inventory_repository = std::sync::Arc::new(PostgresInventoryRepository::new(pool));
+        let inventory_service = InventoryServiceImpl::new(inventory_repository);
 
-        let discount_amount =
-            discount.map(|d| Decimal::from_f64_retain(d).unwrap_or(Decimal::ZERO));
+        let product = inventory_service.get_product(product_sku).await?;
+
+        let order_items = vec![OrderItemRequest {
+            product_id: product.id,
+            quantity: *quantity,
+            unit_price: None,
+            discount: None,
+        }];
 
         let request = CreateOrderRequest {
-            customer_id,
+            customer_id: customer_uuid,
             items: order_items,
             shipping_address: None,
             billing_address: None,
             payment_method: None,
             notes: notes.clone(),
-            discount_amount,
+            discount_amount: None,
         };
 
         match sales_service.create_order(request).await {

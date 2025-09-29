@@ -481,7 +481,8 @@ impl CustomerHandler {
                 .map_err(|e| ErpError::internal(format!("Failed to flush stdout: {}", e)))?;
 
             let mut input = String::new();
-            std::io::stdin().read_line(&mut input)
+            std::io::stdin()
+                .read_line(&mut input)
                 .map_err(|e| ErpError::internal(format!("Failed to read user input: {}", e)))?;
 
             let input = input.trim().to_lowercase();

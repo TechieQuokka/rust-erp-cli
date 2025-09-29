@@ -911,6 +911,11 @@ erp config set timezone "Asia/Seoul"
 
 # 로그 레벨 설정
 erp config set logging.level "debug"
+
+# 세금률 설정 (백분율)
+erp config set tax_rate "10.0"   # 10% 부가세
+erp config set tax_rate "5.0"    # 5% 세율
+erp config set tax_rate "0.0"    # 세금 없음
 ```
 
 ### config list - 설정 목록
@@ -970,6 +975,74 @@ erp config reset
 
 # 강제 초기화
 erp config reset --confirm
+```
+
+### 세금률 관리
+
+시스템의 세금률은 `tax_rate` 설정을 통해 관리됩니다. 이 설정은 모든 판매 주문에 자동으로 적용됩니다.
+
+#### 사용법
+```bash
+# 세금률 조회
+erp config get tax_rate
+
+# 세금률 설정 (백분율로 입력)
+erp config set tax_rate "<세율>"
+```
+
+#### 세금률 설정 예시
+
+##### 배포된 바이너리 사용
+```bash
+# 한국 부가세 10% 설정
+erp config set tax_rate "10.0"
+
+# 미국 판매세 8.25% 설정
+erp config set tax_rate "8.25"
+
+# 세금 면제 (0% 설정)
+erp config set tax_rate "0.0"
+
+# 현재 세금률 확인
+erp config get tax_rate
+```
+
+##### 개발 환경에서 실행
+```bash
+# 한국 부가세 10% 설정
+cargo run -- config set tax_rate "10.0"
+
+# 미국 판매세 8.25% 설정
+cargo run -- config set tax_rate "8.25"
+
+# 세금 면제 (0% 설정)
+cargo run -- config set tax_rate "0.0"
+
+# 현재 세금률 확인
+cargo run -- config get tax_rate
+```
+
+#### 세금률 적용 범위
+- **자동 적용**: 모든 새로운 주문에 자동으로 적용
+- **즉시 반영**: 설정 변경 후 바로 다음 주문부터 적용
+- **기존 주문**: 이미 생성된 주문의 세금률은 변경되지 않음
+- **유효 범위**: 0.0% ~ 100.0% (포함)
+
+#### 기본값
+- 설정되지 않은 경우 기본값: **10.0%** (한국 부가세)
+
+#### 주문 생성 시 세금 계산 예시
+```bash
+# 세금률 10%로 설정
+erp config set tax_rate "10.0"
+
+# 주문 생성 (₩150,000 상품)
+erp sales create-order --customer-id CUST-12345678 --product-sku SKU-PRODUCT --quantity 1
+
+# 결과:
+# 소계: ₩150,000
+# 세금: ₩15,000 (150,000 × 10%)
+# 총액: ₩165,000
 ```
 
 ---
