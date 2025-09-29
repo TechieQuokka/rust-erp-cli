@@ -283,7 +283,10 @@ impl InventoryHandler {
                             };
 
                             let stock_info = if item.reserved_quantity > 0 {
-                                format!("{} ({}/{})", item.quantity, item.available_quantity, item.reserved_quantity)
+                                format!(
+                                    "{} ({}/{})",
+                                    item.quantity, item.available_quantity, item.reserved_quantity
+                                )
                             } else {
                                 format!("{}", item.quantity)
                             };
@@ -518,7 +521,10 @@ impl InventoryHandler {
         // Use actual inventory service instead of stubbed implementation
         let db_connection = DatabaseManager::get_connection().await?;
         let inventory_module = InventoryModule::new_with_postgres(db_connection.pool().clone());
-        let alerts_result = inventory_module.service().get_low_stock_alerts(validated_threshold).await;
+        let alerts_result = inventory_module
+            .service()
+            .get_low_stock_alerts(validated_threshold)
+            .await;
 
         match alerts_result {
             Ok(alerts) => {

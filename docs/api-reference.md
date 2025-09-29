@@ -548,14 +548,51 @@ erp customers delete <고객ID> [옵션]
 
 #### 사용법
 ```bash
-erp customers search [옵션]
+erp customers search <검색어> [옵션]
 ```
 
+#### 필수 인수
+| 인수 | 설명 |
+|------|------|
+| `<검색어>` | 검색할 키워드 |
+
 #### 옵션
-| 옵션 | 설명 | 필수 |
-|------|------|------|
-| `--query <검색어>` | 검색할 키워드 | ✓ |
+| 옵션 | 설명 | 기본값 |
+|------|------|--------|
+| `--field <필드>` | 검색 필드 (name, email, phone) | 모든 필드 |
 | `--format <형식>` | 출력 형식 | table |
+
+#### 예시
+
+##### 배포된 바이너리 사용
+```bash
+# 모든 필드에서 검색
+erp customers search "김철수"
+
+# 이름 필드에서만 검색
+erp customers search "김철수" --field name
+
+# 이메일 필드에서만 검색
+erp customers search "kim@example.com" --field email
+
+# 전화번호 필드에서만 검색
+erp customers search "010-1234-5678" --field phone
+```
+
+##### 개발 환경에서 실행
+```bash
+# 모든 필드에서 검색
+cargo run -- customers search "김철수"
+
+# 이름 필드에서만 검색
+cargo run -- customers search "김철수" --field name
+
+# 이메일 필드에서만 검색
+cargo run -- customers search "kim@example.com" --field email
+
+# 전화번호 필드에서만 검색
+cargo run -- customers search "010-1234-5678" --field phone
+```
 
 ---
 

@@ -6,6 +6,25 @@ use uuid::Uuid;
 use crate::core::database::models::customer::*;
 use crate::utils::error::{ErpError, ErpResult};
 
+// Helper function to build ORDER BY clause
+fn build_sort_clause(sort_by: &str, sort_order: &str) -> (String, String) {
+    let valid_sort_fields = ["name", "email", "created_at"];
+
+    let sort_field = if valid_sort_fields.contains(&sort_by) {
+        sort_by
+    } else {
+        "name"
+    };
+
+    let sort_order = if sort_order == "asc" || sort_order == "desc" {
+        sort_order.to_uppercase()
+    } else {
+        "ASC".to_string()
+    };
+
+    (sort_field.to_string(), sort_order)
+}
+
 #[async_trait]
 pub trait CustomerRepository: Send + Sync {
     async fn create_customer(&self, customer: &Customer) -> ErpResult<()>;
@@ -19,6 +38,8 @@ pub trait CustomerRepository: Send + Sync {
         filter: &CustomerFilter,
         page: u32,
         per_page: u32,
+        sort_by: &str,
+        sort_order: &str,
     ) -> ErpResult<CustomerListResponse>;
     async fn update_customer(&self, id: Uuid, customer: &Customer) -> ErpResult<()>;
     async fn update_customer_balance(
@@ -307,47 +328,123 @@ impl CustomerRepository for PostgresCustomerRepository {
         filter: &CustomerFilter,
         page: u32,
         per_page: u32,
+        sort_by: &str,
+        sort_order: &str,
     ) -> ErpResult<CustomerListResponse> {
         let offset = (page - 1) * per_page;
+        let (sort_field, sort_order) = build_sort_clause(sort_by, sort_order);
 
-        // Build dynamic query based on filters (simplified for now)
-        let _where_clause = if filter.search.is_some() {
-            // TODO: Implement proper filtering
+        // Build dynamic WHERE clause based on filters
+        let mut where_conditions = Vec::new();
+        let mut bind_values = Vec::new();
+        let mut param_count = 0;
+
+        if let Some(search) = &filter.search {
+            param_count += 1;
+            let search_pattern = format!("%{}%", search);
+            where_conditions.push(format!(
+                "(name ILIKE ${} OR email ILIKE ${} OR company ILIKE ${})",
+                param_count, param_count, param_count
+            ));
+            bind_values.push(search_pattern);
+        }
+
+        if let Some(customer_type) = &filter.customer_type {
+            param_count += 1;
+            let type_str = match customer_type {
+                CustomerType::Individual => "individual",
+                CustomerType::Business => "business",
+                CustomerType::Wholesale => "wholesale",
+                CustomerType::Retail => "retail",
+            };
+            where_conditions.push(format!("customer_type = ${}", param_count));
+            bind_values.push(type_str.to_string());
+        }
+
+        if let Some(status) = &filter.status {
+            param_count += 1;
+            let status_str = match status {
+                CustomerStatus::Active => "active",
+                CustomerStatus::Inactive => "inactive",
+                CustomerStatus::Suspended => "suspended",
+                CustomerStatus::Blacklisted => "blacklisted",
+            };
+            where_conditions.push(format!("status = ${}", param_count));
+            bind_values.push(status_str.to_string());
+        }
+
+        let where_clause = if where_conditions.is_empty() {
             String::new()
         } else {
-            String::new()
+            format!("WHERE {}", where_conditions.join(" AND "))
         };
 
-        // Get total count (simplified for now)
-        let total: i64 = sqlx::query_scalar("SELECT COUNT(*) FROM customers")
+        // Get total count with filters
+        let count_query = format!("SELECT COUNT(*) FROM customers {}", where_clause);
+        let mut count_query_builder = sqlx::query_scalar(&count_query);
+        for value in &bind_values {
+            count_query_builder = count_query_builder.bind(value);
+        }
+        let total: i64 = count_query_builder
             .fetch_one(&*self.pool)
             .await
             .map_err(|e| ErpError::database(format!("Failed to count customers: {}", e)))?;
 
-        // Get customers with pagination (simplified for now)
-        let rows = sqlx::query!(
+        // Get customers with pagination, filtering, and dynamic sorting
+        param_count += 1;
+        let limit_param = param_count;
+        param_count += 1;
+        let offset_param = param_count;
+
+        let query = format!(
             "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
-             FROM customers ORDER BY created_at DESC LIMIT $1 OFFSET $2",
-            per_page as i64,
-            offset as i64
-        )
-        .fetch_all(&*self.pool)
-        .await
-        .map_err(|e| ErpError::database(format!("Failed to fetch customers: {}", e)))?;
+             FROM customers {} ORDER BY {} {} LIMIT ${} OFFSET ${}",
+            where_clause, sort_field, sort_order, limit_param, offset_param
+        );
+
+        let mut query_builder = sqlx::query_as::<
+            _,
+            (
+                Uuid,
+                String,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                Option<String>,
+                Option<rust_decimal::Decimal>,
+                Option<rust_decimal::Decimal>,
+                Option<String>,
+                chrono::DateTime<chrono::Utc>,
+                chrono::DateTime<chrono::Utc>,
+            ),
+        >(&query);
+
+        for value in &bind_values {
+            query_builder = query_builder.bind(value);
+        }
+
+        let rows = query_builder
+            .bind(per_page as i64)
+            .bind(offset as i64)
+            .fetch_all(&*self.pool)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to fetch customers: {}", e)))?;
 
         let mut customers = Vec::new();
         for row in rows {
-            let id = row.id;
-            let name = row.name;
-            let email = row.email;
-            let phone = row.phone;
-            let company = row.company;
-            let tax_id = row.tax_id;
-            let credit_limit = row.credit_limit;
-            let current_balance = row.current_balance;
-            let notes = row.notes;
-            let created_at = row.created_at;
-            let updated_at = row.updated_at;
+            let (
+                id,
+                name,
+                email,
+                phone,
+                company,
+                tax_id,
+                credit_limit,
+                current_balance,
+                notes,
+                created_at,
+                updated_at,
+            ) = row;
 
             // Default customer type since column doesn't exist
             let customer_type = CustomerType::Individual;
@@ -450,10 +547,41 @@ impl CustomerRepository for PostgresCustomerRepository {
         Ok(())
     }
 
-    async fn delete_customer(&self, _id: Uuid) -> ErpResult<()> {
-        Err(ErpError::internal(
-            "Database operations not yet implemented - use MockCustomerRepository for testing",
-        ))
+    async fn delete_customer(&self, id: Uuid) -> ErpResult<()> {
+        // Start a transaction to ensure atomicity
+        let mut tx = self.pool.begin().await
+            .map_err(|e| ErpError::database(format!("Failed to start transaction: {}", e)))?;
+
+        // First, delete all customer addresses
+        sqlx::query!(
+            "DELETE FROM customer_addresses WHERE customer_id = $1",
+            id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to delete customer addresses: {}", e)))?;
+
+        // Then delete the customer
+        let result = sqlx::query!(
+            "DELETE FROM customers WHERE id = $1",
+            id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to delete customer: {}", e)))?;
+
+        // Check if customer was actually deleted
+        if result.rows_affected() == 0 {
+            tx.rollback().await
+                .map_err(|e| ErpError::database(format!("Failed to rollback transaction: {}", e)))?;
+            return Err(ErpError::not_found_simple("Customer not found"));
+        }
+
+        // Commit the transaction
+        tx.commit().await
+            .map_err(|e| ErpError::database(format!("Failed to commit transaction: {}", e)))?;
+
+        Ok(())
     }
 
     async fn search_customers(&self, query: &str, limit: u32) -> ErpResult<Vec<Customer>> {
@@ -627,6 +755,8 @@ impl CustomerRepository for MockCustomerRepository {
         filter: &CustomerFilter,
         page: u32,
         per_page: u32,
+        sort_by: &str,
+        sort_order: &str,
     ) -> ErpResult<CustomerListResponse> {
         let customers = self.customers.lock().unwrap();
         let mut filtered_customers: Vec<_> = customers.values().collect();
@@ -655,6 +785,48 @@ impl CustomerRepository for MockCustomerRepository {
                 filtered_customers.retain(|c| c.has_outstanding_balance());
             } else {
                 filtered_customers.retain(|c| !c.has_outstanding_balance());
+            }
+        }
+
+        // Apply sorting
+        let (sort_field, sort_order) = build_sort_clause(sort_by, sort_order);
+        match sort_field.as_str() {
+            "name" => {
+                if sort_order == "ASC" {
+                    filtered_customers.sort_by(|a, b| {
+                        let a_name = format!("{} {}", a.first_name, a.last_name);
+                        let b_name = format!("{} {}", b.first_name, b.last_name);
+                        a_name.cmp(&b_name)
+                    });
+                } else {
+                    filtered_customers.sort_by(|a, b| {
+                        let a_name = format!("{} {}", a.first_name, a.last_name);
+                        let b_name = format!("{} {}", b.first_name, b.last_name);
+                        b_name.cmp(&a_name)
+                    });
+                }
+            }
+            "email" => {
+                if sort_order == "ASC" {
+                    filtered_customers.sort_by(|a, b| a.email.cmp(&b.email));
+                } else {
+                    filtered_customers.sort_by(|a, b| b.email.cmp(&a.email));
+                }
+            }
+            "created_at" => {
+                if sort_order == "ASC" {
+                    filtered_customers.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+                } else {
+                    filtered_customers.sort_by(|a, b| b.created_at.cmp(&a.created_at));
+                }
+            }
+            _ => {
+                // Default to name sorting
+                filtered_customers.sort_by(|a, b| {
+                    let a_name = format!("{} {}", a.first_name, a.last_name);
+                    let b_name = format!("{} {}", b.first_name, b.last_name);
+                    a_name.cmp(&b_name)
+                });
             }
         }
 

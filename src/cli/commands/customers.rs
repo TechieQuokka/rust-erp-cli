@@ -37,7 +37,13 @@ impl CustomerHandler {
                 company,
                 tax_id,
                 notes,
-            } => Self::handle_add(&service, name, first_name, last_name, email, phone, address, company, tax_id, notes).await,
+            } => {
+                Self::handle_add(
+                    &service, name, first_name, last_name, email, phone, address, company, tax_id,
+                    notes,
+                )
+                .await
+            }
 
             CustomerCommands::List {
                 search,
@@ -222,15 +228,16 @@ impl CustomerHandler {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_list(
         service: &CustomerService,
         search: &Option<String>,
         customer_type: &Option<String>,
         page: u32,
         limit: u32,
-        _format: &str,
-        _sort_by: &str,
-        _order: &str,
+        format: &str,
+        sort_by: &str,
+        order: &str,
     ) -> ErpResult<()> {
         // Validate pagination
         let (validated_page, validated_limit) = CliValidator::validate_pagination(page, limit)?;
@@ -263,7 +270,7 @@ impl CustomerHandler {
 
         // Get customers
         let result = service
-            .list_customers(filter, validated_page, validated_limit)
+            .list_customers(filter, validated_page, validated_limit, sort_by, order)
             .await?;
 
         if result.customers.is_empty() {
@@ -271,43 +278,79 @@ impl CustomerHandler {
             return Ok(());
         }
 
-        // Create table
-        let mut table = Table::new();
-        table
-            .load_preset(UTF8_FULL)
-            .apply_modifier(UTF8_ROUND_CORNERS)
-            .set_header(vec![
-                "Code",
-                "Name",
-                "Email",
-                "Type",
-                "Status",
-                "Credit Limit",
-                "Balance",
-                "Available",
-            ]);
+        match format {
+            "json" => {
+                // Output as JSON
+                use serde_json::json;
+                let output = json!({
+                    "status": "success",
+                    "data": result.customers,
+                    "meta": {
+                        "total": result.total,
+                        "page": result.page,
+                        "per_page": result.per_page,
+                        "total_pages": (result.total + result.per_page as i64 - 1) / result.per_page as i64
+                    }
+                });
+                println!("{}", serde_json::to_string_pretty(&output).unwrap());
+            }
+            "csv" => {
+                // Output as CSV
+                println!("Code,Name,Email,Type,Status,Credit Limit,Balance,Available");
+                for customer in &result.customers {
+                    println!(
+                        "{},{},{},{},{},{},{},{}",
+                        customer.customer_code,
+                        customer.display_name(),
+                        customer.email,
+                        customer.customer_type,
+                        customer.status,
+                        customer.credit_limit,
+                        customer.current_balance,
+                        customer.available_credit
+                    );
+                }
+            }
+            _ => {
+                // Default table format
+                let mut table = Table::new();
+                table
+                    .load_preset(UTF8_FULL)
+                    .apply_modifier(UTF8_ROUND_CORNERS)
+                    .set_header(vec![
+                        "Code",
+                        "Name",
+                        "Email",
+                        "Type",
+                        "Status",
+                        "Credit Limit",
+                        "Balance",
+                        "Available",
+                    ]);
 
-        for customer in &result.customers {
-            table.add_row(vec![
-                customer.customer_code.clone(),
-                customer.display_name(),
-                customer.email.clone(),
-                customer.customer_type.to_string(),
-                customer.status.to_string(),
-                format!("${}", customer.credit_limit),
-                format!("${}", customer.current_balance),
-                format!("${}", customer.available_credit),
-            ]);
+                for customer in &result.customers {
+                    table.add_row(vec![
+                        customer.customer_code.clone(),
+                        customer.display_name(),
+                        customer.email.clone(),
+                        customer.customer_type.to_string(),
+                        customer.status.to_string(),
+                        format!("${}", customer.credit_limit),
+                        format!("${}", customer.current_balance),
+                        format!("${}", customer.available_credit),
+                    ]);
+                }
+
+                println!("{}", table);
+                println!(
+                    "\nShowing {} of {} customers (Page {} of {})",
+                    result.customers.len(),
+                    result.total,
+                    result.page,
+                    (result.total + result.per_page as i64 - 1) / result.per_page as i64
+                );
+            }
         }
-
-        println!("{}", table);
-        println!(
-            "\nShowing {} of {} customers (Page {} of {})",
-            result.customers.len(),
-            result.total,
-            result.page,
-            (result.total + result.per_page as i64 - 1) / result.per_page as i64
-        );
 
         Ok(())
     }
@@ -432,8 +475,20 @@ impl CustomerHandler {
                 return Ok(());
             }
 
-            println!("\n❌ Use --force flag to confirm deletion.");
-            return Ok(());
+            // Interactive confirmation prompt
+            print!("\nAre you sure you want to delete this customer? (y/N): ");
+            std::io::Write::flush(&mut std::io::stdout())
+                .map_err(|e| ErpError::internal(format!("Failed to flush stdout: {}", e)))?;
+
+            let mut input = String::new();
+            std::io::stdin().read_line(&mut input)
+                .map_err(|e| ErpError::internal(format!("Failed to read user input: {}", e)))?;
+
+            let input = input.trim().to_lowercase();
+            if input != "y" && input != "yes" {
+                println!("❌ Deletion cancelled.");
+                return Ok(());
+            }
         }
 
         // Attempt to delete

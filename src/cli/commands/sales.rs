@@ -16,8 +16,7 @@ use crate::utils::validation::ValidationService;
 pub struct SalesHandler;
 
 impl SalesHandler {
-    pub async fn handle(cmd: &SalesCommands, config: &AppConfig) -> ErpResult<()> {
-        DatabaseManager::initialize(config.database.clone()).await?;
+    pub async fn handle(cmd: &SalesCommands, _config: &AppConfig) -> ErpResult<()> {
         let connection = DatabaseManager::get_connection().await?;
         let pool = connection.pool().clone();
 

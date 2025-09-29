@@ -98,6 +98,8 @@ impl CustomerService {
         filter: CustomerFilter,
         page: u32,
         per_page: u32,
+        sort_by: &str,
+        sort_order: &str,
     ) -> ErpResult<CustomerListResponse> {
         // Validate pagination parameters
         if page == 0 {
@@ -110,7 +112,7 @@ impl CustomerService {
         }
 
         self.repository
-            .list_customers(&filter, page, per_page)
+            .list_customers(&filter, page, per_page, sort_by, sort_order)
             .await
     }
 
