@@ -19,12 +19,13 @@ impl InventoryFormatter {
         let mut csv = String::new();
 
         // 헤더
-        csv.push_str("SKU,제품명,카테고리,가격,원가,수량,사용가능수량,예약수량,최소재고,상태,재고상태,위치,마진율\n");
+        csv.push_str("SKU,제품명,카테고리,가격,원가,총수량,사용가능수량,예약수량,최소재고,상태,재고상태,위치,마진율\n");
 
         // 데이터 행들
         for item in &response.items {
             let margin_percentage = if item.price > item.cost {
-                ((item.price - item.cost) / item.price * rust_decimal::Decimal::from(100)).round_dp(1)
+                ((item.price - item.cost) / item.price * rust_decimal::Decimal::from(100))
+                    .round_dp(1)
             } else {
                 rust_decimal::Decimal::ZERO
             };
@@ -59,7 +60,9 @@ impl InventoryFormatter {
     }
 
     /// 저재고 알림을 JSON 형식으로 변환
-    pub fn low_stock_to_json(alerts: &[crate::modules::inventory::LowStockAlert]) -> ErpResult<String> {
+    pub fn low_stock_to_json(
+        alerts: &[crate::modules::inventory::LowStockAlert],
+    ) -> ErpResult<String> {
         match serde_json::to_string_pretty(alerts) {
             Ok(json) => Ok(json),
             Err(e) => Err(ErpError::internal(format!("JSON 변환 오류: {}", e))),
@@ -67,7 +70,9 @@ impl InventoryFormatter {
     }
 
     /// 저재고 알림을 CSV 형식으로 변환
-    pub fn low_stock_to_csv(alerts: &[crate::modules::inventory::LowStockAlert]) -> ErpResult<String> {
+    pub fn low_stock_to_csv(
+        alerts: &[crate::modules::inventory::LowStockAlert],
+    ) -> ErpResult<String> {
         let mut csv = String::new();
 
         // 헤더
@@ -93,40 +98,38 @@ impl InventoryFormatter {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::modules::inventory::InventoryItemResponse;
     use crate::core::database::models::product::{ProductStatus, StockStatus};
+    use crate::modules::inventory::InventoryItemResponse;
     use chrono::Utc;
     use rust_decimal::Decimal;
     use uuid::Uuid;
 
     fn create_test_response() -> InventoryListResponse {
         InventoryListResponse {
-            items: vec![
-                InventoryItemResponse {
-                    id: Uuid::new_v4(),
-                    sku: "TEST001".to_string(),
-                    name: "Test Product".to_string(),
-                    description: Some("Test description".to_string()),
-                    category: "Electronics".to_string(),
-                    price: Decimal::new(1999, 2), // 19.99
-                    cost: Decimal::new(1299, 2),  // 12.99
-                    quantity: 100,
-                    available_quantity: 95,
-                    reserved_quantity: 5,
-                    min_stock_level: 10,
-                    max_stock_level: Some(500),
-                    status: ProductStatus::Active,
-                    stock_status: StockStatus::InStock,
-                    location: Some("A1".to_string()),
-                    last_movement_date: Some(Utc::now()),
-                    created_at: Utc::now(),
-                    updated_at: Utc::now(),
-                    margin: Decimal::new(700, 2), // 7.00
-                    margin_percentage: Decimal::new(3503, 2), // 35.03%
-                    reorder_needed: false,
-                    days_of_stock: Some(95),
-                }
-            ],
+            items: vec![InventoryItemResponse {
+                id: Uuid::new_v4(),
+                sku: "TEST001".to_string(),
+                name: "Test Product".to_string(),
+                description: Some("Test description".to_string()),
+                category: "Electronics".to_string(),
+                price: Decimal::new(1999, 2), // 19.99
+                cost: Decimal::new(1299, 2),  // 12.99
+                quantity: 100,
+                available_quantity: 95,
+                reserved_quantity: 5,
+                min_stock_level: 10,
+                max_stock_level: Some(500),
+                status: ProductStatus::Active,
+                stock_status: StockStatus::InStock,
+                location: Some("A1".to_string()),
+                last_movement_date: Some(Utc::now()),
+                created_at: Utc::now(),
+                updated_at: Utc::now(),
+                margin: Decimal::new(700, 2),             // 7.00
+                margin_percentage: Decimal::new(3503, 2), // 35.03%
+                reorder_needed: false,
+                days_of_stock: Some(95),
+            }],
             total: 1,
             page: 1,
             per_page: 20,

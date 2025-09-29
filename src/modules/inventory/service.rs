@@ -332,7 +332,7 @@ impl InventoryService for InventoryServiceImpl {
             }
         }
 
-        self.repository.delete_product(product.id).await?;
+        self.repository.delete_product(product.id, force).await?;
 
         info!(
             "Product deleted successfully: {} ({})",

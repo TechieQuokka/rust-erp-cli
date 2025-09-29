@@ -49,7 +49,7 @@ pub trait InventoryRepository: Send + Sync {
     async fn list_products(&self, filter: &InventoryFilter)
         -> ErpResult<(Vec<InventoryItem>, i64)>;
     async fn update_product(&self, id: Uuid, request: UpdateProductRequest) -> ErpResult<Product>;
-    async fn delete_product(&self, id: Uuid) -> ErpResult<()>;
+    async fn delete_product(&self, id: Uuid, force: bool) -> ErpResult<()>;
     async fn adjust_stock(
         &self,
         request: StockAdjustmentRequest,
@@ -168,6 +168,11 @@ impl InventoryRepository for PostgresInventoryRepository {
         let mut param_count = 0;
 
         // Build WHERE clause dynamically
+        // Always exclude discontinued products unless explicitly requested
+        if filter.status.is_none() {
+            where_conditions.push("status != 'discontinued'".to_string());
+        }
+
         if let Some(category) = &filter.category {
             param_count += 1;
             where_conditions.push(format!("category = ${}", param_count));
@@ -270,9 +275,9 @@ impl InventoryRepository for PostgresInventoryRepository {
         let query = r#"
             UPDATE products SET
                 name = $2, description = $3, category = $4, price = $5, cost = $6,
-                min_stock_level = $7, max_stock_level = $8, status = $9, is_taxable = $10,
-                weight = $11, dimensions = $12, barcode = $13, supplier_id = $14,
-                updated_at = $15
+                quantity = $7, min_stock_level = $8, max_stock_level = $9, status = $10, is_taxable = $11,
+                weight = $12, dimensions = $13, barcode = $14, supplier_id = $15,
+                updated_at = $16
             WHERE id = $1
         "#;
 
@@ -283,6 +288,7 @@ impl InventoryRepository for PostgresInventoryRepository {
             .bind(&product.category)
             .bind(product.price)
             .bind(product.cost)
+            .bind(product.quantity)
             .bind(product.min_stock_level)
             .bind(product.max_stock_level)
             .bind(&product.status)
@@ -299,7 +305,7 @@ impl InventoryRepository for PostgresInventoryRepository {
         Ok(product)
     }
 
-    async fn delete_product(&self, id: Uuid) -> ErpResult<()> {
+    async fn delete_product(&self, id: Uuid, force: bool) -> ErpResult<()> {
         // Check if product exists
         if self.get_product_by_id(id).await?.is_none() {
             return Err(ErpError::not_found_simple(format!(
@@ -308,17 +314,27 @@ impl InventoryRepository for PostgresInventoryRepository {
             )));
         }
 
-        // TODO: Check for references in orders, etc.
-        // For now, we'll do a soft delete by setting status to Discontinued
-        let query = "UPDATE products SET status = $1, updated_at = $2 WHERE id = $3";
+        if force {
+            // Hard delete the product record
+            let query = "DELETE FROM products WHERE id = $1";
 
-        sqlx::query(query)
-            .bind(ProductStatus::Discontinued)
-            .bind(Utc::now())
-            .bind(id)
-            .execute(&self.pool)
-            .await
-            .map_err(|e| ErpError::internal(format!("Failed to delete product: {}", e)))?;
+            sqlx::query(query)
+                .bind(id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| ErpError::internal(format!("Failed to delete product: {}", e)))?;
+        } else {
+            // Soft delete by setting status to Discontinued
+            let query = "UPDATE products SET status = $1, updated_at = $2 WHERE id = $3";
+
+            sqlx::query(query)
+                .bind(ProductStatus::Discontinued)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&self.pool)
+                .await
+                .map_err(|e| ErpError::internal(format!("Failed to delete product: {}", e)))?;
+        }
 
         Ok(())
     }
@@ -755,8 +771,60 @@ impl InventoryRepository for MockInventoryRepository {
         let products = self.products.lock().unwrap();
         let mut items: Vec<InventoryItem> = products
             .values()
+            .filter(|p| {
+                // Always exclude discontinued products unless explicitly requested
+                filter.status.is_some() || p.status != ProductStatus::Discontinued
+            })
             .map(|p| InventoryItem::from_product(p.clone()))
             .collect();
+
+        // Apply filters
+        if let Some(category) = &filter.category {
+            items.retain(|item| item.product.category.to_lowercase() == category.to_lowercase());
+        }
+
+        if let Some(sku) = &filter.sku {
+            items.retain(|item| {
+                item.product
+                    .sku
+                    .to_uppercase()
+                    .contains(&sku.to_uppercase())
+            });
+        }
+
+        if let Some(name) = &filter.name {
+            items.retain(|item| {
+                item.product
+                    .name
+                    .to_uppercase()
+                    .contains(&name.to_uppercase())
+            });
+        }
+
+        if let Some(search_query) = &filter.search_query {
+            let query_upper = search_query.to_uppercase();
+            items.retain(|item| {
+                item.product.name.to_uppercase().contains(&query_upper)
+                    || item.product.sku.to_uppercase().contains(&query_upper)
+                    || item.product.category.to_uppercase().contains(&query_upper)
+            });
+        }
+
+        if let Some(status) = &filter.status {
+            items.retain(|item| item.product.status == *status);
+        }
+
+        if let Some(true) = filter.low_stock_only {
+            items.retain(|item| item.product.quantity <= item.product.min_stock_level);
+        }
+
+        if let Some(min_quantity) = filter.min_quantity {
+            items.retain(|item| item.product.quantity >= min_quantity);
+        }
+
+        if let Some(max_quantity) = filter.max_quantity {
+            items.retain(|item| item.product.quantity <= max_quantity);
+        }
 
         // Apply sorting
         let (sort_field, sort_order) = build_sort_clause(&filter.sort_by, &filter.sort_order);
@@ -780,7 +848,19 @@ impl InventoryRepository for MockInventoryRepository {
             }
         });
 
+        // Apply pagination
         let total = items.len() as i64;
+        let page = filter.page.unwrap_or(1);
+        let limit = filter.limit.unwrap_or(20);
+        let offset = ((page - 1) * limit) as usize;
+
+        if offset < items.len() {
+            let end = (offset + limit as usize).min(items.len());
+            items = items[offset..end].to_vec();
+        } else {
+            items.clear();
+        }
+
         Ok((items, total))
     }
 
@@ -798,16 +878,34 @@ impl InventoryRepository for MockInventoryRepository {
         }
     }
 
-    async fn delete_product(&self, id: Uuid) -> ErpResult<()> {
+    async fn delete_product(&self, id: Uuid, force: bool) -> ErpResult<()> {
         let mut products = self.products.lock().unwrap();
-        if products.remove(&id).is_some() {
-            save_mock_products(&products);
-            Ok(())
+
+        if force {
+            // Hard delete - remove from map
+            if products.remove(&id).is_some() {
+                save_mock_products(&products);
+                Ok(())
+            } else {
+                Err(ErpError::not_found_simple(format!(
+                    "Product with ID {} not found",
+                    id
+                )))
+            }
         } else {
-            Err(ErpError::not_found_simple(format!(
-                "Product with ID {} not found",
-                id
-            )))
+            // Soft delete - set status to discontinued
+            if let Some(mut product) = products.get(&id).cloned() {
+                product.status = ProductStatus::Discontinued;
+                product.updated_at = Utc::now();
+                products.insert(id, product);
+                save_mock_products(&products);
+                Ok(())
+            } else {
+                Err(ErpError::not_found_simple(format!(
+                    "Product with ID {} not found",
+                    id
+                )))
+            }
         }
     }
 

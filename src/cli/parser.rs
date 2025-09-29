@@ -117,9 +117,15 @@ pub enum InventoryCommands {
         /// 새로운 가격
         #[clap(long)]
         price: Option<f64>,
+        /// 새로운 원가
+        #[clap(long)]
+        cost: Option<f64>,
         /// 새로운 카테고리
         #[clap(long)]
         category: Option<String>,
+        /// 새로운 설명
+        #[clap(long)]
+        description: Option<String>,
     },
     /// 제품 삭제
     Remove {
@@ -144,8 +150,14 @@ pub enum InventoryCommands {
 pub enum CustomerCommands {
     /// 고객 추가
     Add {
-        /// 고객명
-        name: String,
+        /// 고객명 (전체 이름 또는 회사명)
+        name: Option<String>,
+        /// 성
+        #[clap(long)]
+        first_name: Option<String>,
+        /// 이름
+        #[clap(long)]
+        last_name: Option<String>,
         /// 이메일
         #[clap(long)]
         email: String,
@@ -155,9 +167,12 @@ pub enum CustomerCommands {
         /// 주소
         #[clap(long)]
         address: Option<String>,
-        /// 회사명 (개인 고객인 경우 생략)
+        /// 회사명 (기업 고객인 경우 필수)
         #[clap(long)]
         company: Option<String>,
+        /// 사업자등록번호 (기업 고객인 경우 필수)
+        #[clap(long)]
+        tax_id: Option<String>,
         /// 고객 관련 메모
         #[clap(long)]
         notes: Option<String>,

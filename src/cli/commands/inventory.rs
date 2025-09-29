@@ -1,10 +1,10 @@
 use crate::cli::parser::InventoryCommands;
 use crate::cli::validator::CliValidator;
 use crate::core::config::AppConfig;
+use crate::core::database::connection::DatabaseManager;
 use crate::core::database::models::product::StockStatus;
 use crate::modules::inventory::{
-    CreateInventoryItemRequest, InventoryFilter,
-    UpdateInventoryItemRequest, InventoryModule,
+    CreateInventoryItemRequest, InventoryFilter, InventoryModule, UpdateInventoryItemRequest,
 };
 use crate::utils::error::ErpResult;
 use crate::utils::inventory_formatter::InventoryFormatter;
@@ -49,18 +49,25 @@ impl InventoryHandler {
                 format,
                 sort_by,
                 order,
-            } => Self::handle_list(
-                *low_stock, category, search, *page, *limit, format, sort_by, order, config
-            ).await,
+            } => {
+                Self::handle_list(
+                    *low_stock, category, search, *page, *limit, format, sort_by, order, config,
+                )
+                .await
+            }
             InventoryCommands::Update {
                 id,
                 name,
                 quantity,
                 price,
+                cost,
                 category,
-            } => Self::handle_update(id, name, quantity, price, category).await,
+                description,
+            } => Self::handle_update(id, name, quantity, price, cost, category, description).await,
             InventoryCommands::Remove { id, force } => Self::handle_remove(id, *force).await,
-            InventoryCommands::LowStock { threshold, format } => Self::handle_low_stock(threshold, format).await,
+            InventoryCommands::LowStock { threshold, format } => {
+                Self::handle_low_stock(threshold, format).await
+            }
         }
     }
 
@@ -124,10 +131,14 @@ impl InventoryHandler {
         // TODO: Get actual user_id from authentication context
         let _user_id = Uuid::new_v4();
 
-        // 임시로 mock 사용 (데이터베이스 스키마 문제로 인해)
-        let inventory_module = InventoryModule::new_with_mock();
+        // 실제 데이터베이스 연결 사용
+        let db_connection = DatabaseManager::get_connection().await?;
+        let inventory_module = InventoryModule::new_with_postgres(db_connection.pool().clone());
         let user_id = Uuid::new_v4(); // TODO: Get from auth context
-        let response = inventory_module.service().create_product(request, user_id).await;
+        let response = inventory_module
+            .service()
+            .create_product(request, user_id)
+            .await;
         match response {
             Ok(product) => {
                 println!("✅ 제품이 성공적으로 추가되었습니다!");
@@ -203,15 +214,16 @@ impl InventoryHandler {
             ..Default::default()
         };
 
-        // 임시로 mock 사용 (데이터베이스 스키마 문제로 인해)
-        let inventory_module = InventoryModule::new_with_mock();
+        // 실제 데이터베이스 연결 사용
+        let db_connection = DatabaseManager::get_connection().await?;
+        let inventory_module = InventoryModule::new_with_postgres(db_connection.pool().clone());
         let response = inventory_module.service().list_products(_filter).await;
         match response {
             Ok(response) => {
                 if response.items.is_empty() {
                     match format {
                         "json" => println!("{{\"items\": [], \"total\": 0}}"),
-                        "csv" => println!("SKU,제품명,카테고리,가격,원가,수량,사용가능수량,예약수량,최소재고,상태,재고상태,위치,마진율"),
+                        "csv" => println!("SKU,제품명,카테고리,가격,원가,총수량,사용가능수량,예약수량,최소재고,상태,재고상태,위치,마진율"),
                         "yaml" => println!("items: []\ntotal: 0"),
                         _ => println!("📋 조건에 맞는 제품이 없습니다."),
                     }
@@ -257,7 +269,7 @@ impl InventoryHandler {
                             "카테고리",
                             "가격",
                             "원가",
-                            "수량",
+                            "재고",
                             "상태",
                             "마진",
                         ]);
@@ -270,13 +282,19 @@ impl InventoryHandler {
                                 StockStatus::Overstocked => "📦",
                             };
 
+                            let stock_info = if item.reserved_quantity > 0 {
+                                format!("{} ({}/{})", item.quantity, item.available_quantity, item.reserved_quantity)
+                            } else {
+                                format!("{}", item.quantity)
+                            };
+
                             table.add_row(vec![
                                 &item.sku,
                                 &item.name,
                                 &item.category,
                                 &format!("₩{:.2}", item.price),
                                 &format!("₩{:.2}", item.cost),
-                                &format!("{} {}", item.quantity, status_icon),
+                                &format!("{} {}", stock_info, status_icon),
                                 &format!("{}", item.stock_status),
                                 &format!("{:.1}%", item.margin_percentage),
                             ]);
@@ -311,7 +329,9 @@ impl InventoryHandler {
         name: &Option<String>,
         quantity: &Option<i32>,
         price: &Option<f64>,
+        cost: &Option<f64>,
         category: &Option<String>,
+        description: &Option<String>,
     ) -> ErpResult<()> {
         info!("Updating product: {}", id);
 
@@ -323,8 +343,18 @@ impl InventoryHandler {
             None => None,
         };
 
+        let validated_quantity = match quantity {
+            Some(q) => Some(CliValidator::validate_quantity(*q)?),
+            None => None,
+        };
+
         let validated_price = match price {
             Some(p) => Some(CliValidator::validate_price(*p)?),
+            None => None,
+        };
+
+        let validated_cost = match cost {
+            Some(c) => Some(CliValidator::validate_price(*c)?),
             None => None,
         };
 
@@ -333,24 +363,14 @@ impl InventoryHandler {
             None => None,
         };
 
-        // 수량 변경은 별도의 재고 조정으로 처리
-        if quantity.is_some() {
-            println!("⚠️  수량 변경은 'erp inventory adjust' 명령을 사용해주세요.");
-            println!(
-                "   예: erp inventory adjust {} --quantity {} --reason \"재고 조정\"",
-                id,
-                quantity.unwrap()
-            );
-            println!();
-        }
-
         // 업데이트 요청 생성
         let request = UpdateInventoryItemRequest {
             name: validated_name.clone(),
-            description: None,
+            description: description.clone(),
             category: validated_category.clone(),
             price: validated_price,
-            cost: None,
+            cost: validated_cost,
+            quantity: validated_quantity,
             min_stock: None,
             max_stock: None,
             is_taxable: None,
@@ -362,7 +382,13 @@ impl InventoryHandler {
         };
 
         // 업데이트할 내용이 있는지 확인
-        if request.name.is_none() && request.category.is_none() && request.price.is_none() {
+        if request.name.is_none()
+            && request.category.is_none()
+            && request.price.is_none()
+            && request.cost.is_none()
+            && request.quantity.is_none()
+            && request.description.is_none()
+        {
             println!("📝 업데이트할 내용이 없습니다.");
             return Ok(());
         }
@@ -370,10 +396,14 @@ impl InventoryHandler {
         // TODO: Get actual user_id from authentication context
         let _user_id = Uuid::new_v4();
 
-        // 실제 인벤토리 서비스 사용
-        let inventory_module = InventoryModule::new_with_mock();
+        // 실제 데이터베이스 연결 사용
+        let db_connection = DatabaseManager::get_connection().await?;
+        let inventory_module = InventoryModule::new_with_postgres(db_connection.pool().clone());
         let user_id = Uuid::new_v4(); // TODO: Get from auth context
-        let response = inventory_module.service().update_product(id, request, user_id).await;
+        let response = inventory_module
+            .service()
+            .update_product(id, request, user_id)
+            .await;
         match response {
             Ok(product) => {
                 println!("✅ 제품이 성공적으로 수정되었습니다!");
@@ -393,6 +423,15 @@ impl InventoryHandler {
                 }
                 if validated_price.is_some() {
                     table.add_row(vec!["가격", &format!("→ ₩{:.2}", product.price)]);
+                }
+                if validated_cost.is_some() {
+                    table.add_row(vec!["원가", &format!("→ ₩{:.2}", product.cost)]);
+                }
+                if validated_quantity.is_some() {
+                    table.add_row(vec!["수량", &format!("→ {}", product.quantity)]);
+                }
+                if let Some(new_description) = description {
+                    table.add_row(vec!["설명", &format!("→ {}", new_description)]);
                 }
 
                 table.add_row(vec!["SKU", &product.sku]);
@@ -415,8 +454,9 @@ impl InventoryHandler {
         // 입력 검증
         let validated_id = CliValidator::validate_id_or_sku(id)?;
 
-        // 제품 정보 확인 - 임시로 mock 사용
-        let inventory_module = InventoryModule::new_with_mock();
+        // 실제 데이터베이스 연결 사용
+        let db_connection = DatabaseManager::get_connection().await?;
+        let inventory_module = InventoryModule::new_with_postgres(db_connection.pool().clone());
 
         // 제품 정보 조회
         let product = match inventory_module.service().get_product(&validated_id).await {
@@ -447,7 +487,11 @@ impl InventoryHandler {
 
         // 실제 삭제 수행
         let user_id = Uuid::new_v4(); // TODO: Get from auth context
-        match inventory_module.service().delete_product(&validated_id, force, user_id).await {
+        match inventory_module
+            .service()
+            .delete_product(&validated_id, force, user_id)
+            .await
+        {
             Ok(()) => {
                 if force {
                     println!("✅ 제품이 완전히 삭제되었습니다.");
@@ -471,11 +515,12 @@ impl InventoryHandler {
             None => None,
         };
 
-        // TODO: Wire with inventory service
-        // match service.get_low_stock_alerts(validated_threshold).await {
-        match Ok::<Vec<crate::modules::inventory::LowStockAlert>, crate::utils::error::ErpError>(
-            vec![],
-        ) {
+        // Use actual inventory service instead of stubbed implementation
+        let db_connection = DatabaseManager::get_connection().await?;
+        let inventory_module = InventoryModule::new_with_postgres(db_connection.pool().clone());
+        let alerts_result = inventory_module.service().get_low_stock_alerts(validated_threshold).await;
+
+        match alerts_result {
             Ok(alerts) => {
                 if alerts.is_empty() {
                     match format {
@@ -496,12 +541,15 @@ impl InventoryHandler {
                         let csv_output = InventoryFormatter::low_stock_to_csv(&alerts)?;
                         println!("{}", csv_output);
                     }
-                    "yaml" => {
-                        match serde_yaml::to_string(&alerts) {
-                            Ok(yaml) => println!("{}", yaml),
-                            Err(e) => return Err(crate::utils::error::ErpError::internal(format!("YAML 변환 오류: {}", e))),
+                    "yaml" => match serde_yaml::to_string(&alerts) {
+                        Ok(yaml) => println!("{}", yaml),
+                        Err(e) => {
+                            return Err(crate::utils::error::ErpError::internal(format!(
+                                "YAML 변환 오류: {}",
+                                e
+                            )))
                         }
-                    }
+                    },
                     _ => {
                         let threshold_text = match validated_threshold {
                             Some(t) => format!("임계값 {} 이하", t),
@@ -554,4 +602,3 @@ impl InventoryHandler {
         }
     }
 }
-

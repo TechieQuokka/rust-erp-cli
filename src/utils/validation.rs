@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 lazy_static::lazy_static! {
     static ref EMAIL_REGEX: Regex = Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap();
-    static ref PHONE_REGEX: Regex = Regex::new(r"^[\+]?[1-9][\d]{0,15}$").unwrap();
+    static ref PHONE_REGEX: Regex = Regex::new(r"^(\+?[\d\s\-\(\)\.]{7,20}|[\+]?[1-9][\d]{0,15})$").unwrap();
     static ref SKU_REGEX: Regex = Regex::new(r"^[A-Z0-9\-]{3,20}$").unwrap();
     static ref CONFIG_KEY_REGEX: Regex = Regex::new(r"^[a-zA-Z][a-zA-Z0-9._-]*$").unwrap();
 }

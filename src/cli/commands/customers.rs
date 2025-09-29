@@ -10,7 +10,7 @@ use crate::cli::validator::CliValidator;
 use crate::core::config::AppConfig;
 use crate::modules::customers::{
     AddressType, BalanceOperation, CreateAddressRequest, CreateCustomerRequest, CustomerFilter,
-    CustomerService, CustomerType, MockCustomerRepository, UpdateCustomerRequest,
+    CustomerService, CustomerType, PostgresCustomerRepository, UpdateCustomerRequest,
 };
 use crate::utils::error::{ErpError, ErpResult};
 
@@ -18,19 +18,26 @@ pub struct CustomerHandler;
 
 impl CustomerHandler {
     pub async fn handle(cmd: &CustomerCommands, _config: &AppConfig) -> ErpResult<()> {
-        // For now, use MockCustomerRepository for testing until database is properly set up
-        let repository = Arc::new(MockCustomerRepository::new());
+        use crate::core::database::DatabaseManager;
+
+        let connection = DatabaseManager::get_connection().await?;
+        let pool = connection.pool().clone();
+
+        let repository = Arc::new(PostgresCustomerRepository::new(Arc::new(pool)));
         let service = CustomerService::new(repository);
 
         match cmd {
             CustomerCommands::Add {
                 name,
+                first_name,
+                last_name,
                 email,
                 phone,
                 address,
                 company,
+                tax_id,
                 notes,
-            } => Self::handle_add(&service, name, email, phone, address, company, notes).await,
+            } => Self::handle_add(&service, name, first_name, last_name, email, phone, address, company, tax_id, notes).await,
 
             CustomerCommands::List {
                 search,
@@ -40,7 +47,19 @@ impl CustomerHandler {
                 format,
                 sort_by,
                 order,
-            } => Self::handle_list(&service, search, customer_type, *page, *limit, format, sort_by, order).await,
+            } => {
+                Self::handle_list(
+                    &service,
+                    search,
+                    customer_type,
+                    *page,
+                    *limit,
+                    format,
+                    sort_by,
+                    order,
+                )
+                .await
+            }
 
             CustomerCommands::Update {
                 id,
@@ -60,25 +79,65 @@ impl CustomerHandler {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_add(
         service: &CustomerService,
-        name: &str,
+        name: &Option<String>,
+        first_name: &Option<String>,
+        last_name: &Option<String>,
         email: &str,
         phone: &Option<String>,
         address: &Option<String>,
         company: &Option<String>,
+        tax_id: &Option<String>,
         _notes: &Option<String>,
     ) -> ErpResult<()> {
-        // Parse full name
-        let parts: Vec<&str> = name.split_whitespace().collect();
-        if parts.len() < 2 {
-            return Err(ErpError::validation_simple(
-                "Please provide both first and last name",
-            ));
-        }
-
-        let first_name = parts[0].to_string();
-        let last_name = parts[1..].join(" ");
+        // Determine name handling strategy
+        let (final_first_name, final_last_name) = if company.is_some() {
+            // Business customer: use name as company representative or use first/last name options
+            match (name, first_name, last_name) {
+                (Some(n), None, None) => {
+                    // Single name provided for business
+                    (n.clone(), "".to_string())
+                }
+                (None, Some(f), Some(l)) => {
+                    // First and last name provided
+                    (f.clone(), l.clone())
+                }
+                (None, Some(f), None) => {
+                    // Only first name provided
+                    (f.clone(), "".to_string())
+                }
+                _ => {
+                    return Err(ErpError::validation_simple(
+                        "For business customers, provide either name or first-name (and optionally last-name)",
+                    ));
+                }
+            }
+        } else {
+            // Individual customer: require either name with space or first/last name options
+            match (name, first_name, last_name) {
+                (Some(n), None, None) => {
+                    // Full name provided, split by space
+                    let parts: Vec<&str> = n.split_whitespace().collect();
+                    if parts.len() < 2 {
+                        return Err(ErpError::validation_simple(
+                            "For individual customers, provide full name with space (e.g., '김 철수') or use --first-name and --last-name options",
+                        ));
+                    }
+                    (parts[0].to_string(), parts[1..].join(" "))
+                }
+                (None, Some(f), Some(l)) => {
+                    // First and last name provided separately
+                    (f.clone(), l.clone())
+                }
+                _ => {
+                    return Err(ErpError::validation_simple(
+                        "For individual customers, provide either full name or both --first-name and --last-name",
+                    ));
+                }
+            }
+        };
 
         // Validate required email
         let validated_email = CliValidator::validate_email_optional(&Some(email.to_string()))?
@@ -116,10 +175,10 @@ impl CustomerHandler {
 
         // Create customer request
         let request = CreateCustomerRequest {
-            first_name,
-            last_name,
+            first_name: final_first_name,
+            last_name: final_last_name,
             company_name: if customer_type == CustomerType::Business {
-                Some(format!("{} Company", name.trim()))
+                company.clone()
             } else {
                 None
             },
@@ -127,7 +186,7 @@ impl CustomerHandler {
             phone: validated_phone,
             customer_type: customer_type.clone(),
             credit_limit: Some(customer_type.default_credit_limit()),
-            tax_id: None,
+            tax_id: tax_id.clone(),
             notes: None,
             addresses,
         };

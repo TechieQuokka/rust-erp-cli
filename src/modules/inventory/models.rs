@@ -34,7 +34,7 @@ pub struct CreateInventoryItemRequest {
     pub weight: Option<Decimal>,
     pub dimensions: Option<String>,
     pub barcode: Option<String>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
     pub location: Option<String>,
 }
 
@@ -45,13 +45,14 @@ pub struct UpdateInventoryItemRequest {
     pub category: Option<String>,
     pub price: Option<Decimal>,
     pub cost: Option<Decimal>,
+    pub quantity: Option<i32>,
     pub min_stock: Option<i32>,
     pub max_stock: Option<i32>,
     pub is_taxable: Option<bool>,
     pub weight: Option<Decimal>,
     pub dimensions: Option<String>,
     pub barcode: Option<String>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
     pub location: Option<String>,
 }
 
@@ -85,7 +86,7 @@ pub struct InventoryListResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct InventoryItemResponse {
-    pub id: Uuid,
+    pub id: Uuid, // Updated to use proper UUID type
     pub sku: String,
     pub name: String,
     pub description: Option<String>,
@@ -146,7 +147,7 @@ pub struct LowStockAlert {
     pub category: String,
     pub status: ProductStatus,
     pub last_restock_date: Option<DateTime<Utc>>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -292,7 +293,7 @@ impl CreateInventoryItemRequest {
             weight: self.weight,
             dimensions: self.dimensions.clone(),
             barcode: self.barcode.clone(),
-            supplier_id: self.supplier_id,
+            supplier_id: self.supplier_id.clone(),
         }
     }
 
@@ -350,6 +351,7 @@ impl UpdateInventoryItemRequest {
             category: self.category.clone(),
             price: self.price,
             cost: self.cost,
+            quantity: self.quantity,
             min_stock_level: self.min_stock,
             max_stock_level: self.max_stock,
             status: None, // Status updates handled separately
@@ -357,7 +359,7 @@ impl UpdateInventoryItemRequest {
             weight: self.weight,
             dimensions: self.dimensions.clone(),
             barcode: self.barcode.clone(),
-            supplier_id: self.supplier_id,
+            supplier_id: self.supplier_id.clone(),
         }
     }
 }

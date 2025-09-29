@@ -69,7 +69,9 @@ impl ConfigHandler {
         match cmd {
             ConfigCommands::Get { key } => Self::handle_get(key, &service).await,
             ConfigCommands::Set { key, value } => Self::handle_set(key, value, &service).await,
-            ConfigCommands::List { filter, format } => Self::handle_list(filter, format, &service).await,
+            ConfigCommands::List { filter, format } => {
+                Self::handle_list(filter, format, &service).await
+            }
             ConfigCommands::Path => Self::handle_path().await,
             ConfigCommands::Reset { force } => Self::handle_reset(*force, &service).await,
         }
@@ -211,7 +213,11 @@ impl ConfigHandler {
         Ok(())
     }
 
-    async fn handle_list(filter: &Option<String>, _format: &str, service: &ConfigService) -> ErpResult<()> {
+    async fn handle_list(
+        filter: &Option<String>,
+        _format: &str,
+        service: &ConfigService,
+    ) -> ErpResult<()> {
         let term = Term::stdout();
 
         // 필터 생성

@@ -10,7 +10,16 @@
       "Bash(cargo fmt:*)",
       "Bash(git add:*)",
       "Bash(git stash:*)",
-      "Bash(cargo test:*)"
+      "Bash(cargo test:*)",
+      "Bash(git push:*)",
+      "Bash(git checkout:*)",
+      "Bash(psql:*)",
+      "WebSearch",
+      "WebFetch(domain:stackoverflow.com)",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f migrations/010_convert_varchar_to_uuid.sql)",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f fix_uuid_migration.sql)",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f migrations/008_update_customer_schema.sql)",
+      "mcp__sequential-thinking__sequentialthinking"
     ],
     "deny": [],
     "ask": []

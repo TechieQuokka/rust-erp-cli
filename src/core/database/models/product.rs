@@ -6,7 +6,7 @@ use uuid::Uuid;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, FromRow)]
 pub struct Product {
-    pub id: Uuid,
+    pub id: Uuid, // Updated to use proper UUID type after migration 010
     pub sku: String,
     pub name: String,
     pub description: Option<String>,
@@ -21,7 +21,7 @@ pub struct Product {
     pub weight: Option<Decimal>,
     pub dimensions: Option<String>,
     pub barcode: Option<String>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
 }
@@ -50,7 +50,7 @@ pub struct CreateProductRequest {
     pub weight: Option<Decimal>,
     pub dimensions: Option<String>,
     pub barcode: Option<String>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -60,6 +60,7 @@ pub struct UpdateProductRequest {
     pub category: Option<String>,
     pub price: Option<Decimal>,
     pub cost: Option<Decimal>,
+    pub quantity: Option<i32>,
     pub min_stock_level: Option<i32>,
     pub max_stock_level: Option<i32>,
     pub status: Option<ProductStatus>,
@@ -67,12 +68,12 @@ pub struct UpdateProductRequest {
     pub weight: Option<Decimal>,
     pub dimensions: Option<String>,
     pub barcode: Option<String>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ProductResponse {
-    pub id: Uuid,
+    pub id: Uuid, // Updated to use proper UUID type after migration 010
     pub sku: String,
     pub name: String,
     pub description: Option<String>,
@@ -87,7 +88,7 @@ pub struct ProductResponse {
     pub weight: Option<Decimal>,
     pub dimensions: Option<String>,
     pub barcode: Option<String>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
     pub margin: Decimal,
     pub margin_percentage: Decimal,
     pub stock_status: StockStatus,
@@ -105,13 +106,13 @@ pub struct ProductListResponse {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StockMovement {
-    pub id: Uuid,
-    pub product_id: Uuid,
+    pub id: Uuid,         // Updated to use proper UUID type after migration 010
+    pub product_id: Uuid, // Updated to use proper UUID type after migration 010
     pub movement_type: StockMovementType,
     pub quantity: i32,
     pub reason: String,
-    pub reference_id: Option<Uuid>,
-    pub user_id: Uuid,
+    pub reference_id: Option<Uuid>, // Updated to use proper UUID type after migration 010
+    pub user_id: Uuid,              // Updated to use proper UUID type after migration 010
     pub created_at: DateTime<Utc>,
 }
 
@@ -143,7 +144,7 @@ pub struct ProductFilter {
     pub name: Option<String>,
     pub min_price: Option<Decimal>,
     pub max_price: Option<Decimal>,
-    pub supplier_id: Option<Uuid>,
+    pub supplier_id: Option<Uuid>, // Updated to use proper UUID type
 }
 
 impl Product {
@@ -156,7 +157,7 @@ impl Product {
         };
 
         Self {
-            id: Uuid::new_v4(),
+            id: Uuid::new_v4(), // Now generates proper UUID type
             sku: request.sku.to_uppercase(),
             name: request.name,
             description: request.description,
@@ -192,6 +193,9 @@ impl Product {
         }
         if let Some(cost) = request.cost {
             self.cost = cost;
+        }
+        if let Some(quantity) = request.quantity {
+            self.quantity = quantity;
         }
         if let Some(min_stock_level) = request.min_stock_level {
             self.min_stock_level = min_stock_level;
@@ -234,13 +238,13 @@ impl Product {
         self.updated_at = Utc::now();
 
         StockMovement {
-            id: Uuid::new_v4(),
+            id: Uuid::new_v4(), // Now generates proper UUID type
             product_id: self.id,
             movement_type,
             quantity: quantity_change.abs(),
             reason,
             reference_id: None,
-            user_id: Uuid::new_v4(), // This should be passed in
+            user_id: Uuid::new_v4(), // Placeholder - should be passed from caller
             created_at: Utc::now(),
         }
     }

@@ -51,7 +51,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let full_name = format!("{} {}", customer.first_name, customer.last_name)
             .trim()
             .to_string();
-        let customer_type_str = match customer.customer_type {
+        let _customer_type_str = match customer.customer_type {
             CustomerType::Individual => "individual",
             CustomerType::Business => "business",
             CustomerType::Wholesale => "wholesale",
@@ -60,14 +60,13 @@ impl CustomerRepository for PostgresCustomerRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO customers (id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
+            INSERT INTO customers (id, name, email, phone, company, tax_id, credit_limit, current_balance, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             "#,
-            customer.id.to_string(),
+            customer.id,
             full_name,
             customer.email,
             customer.phone,
-            customer_type_str,
             customer.company_name,
             customer.tax_id,
             customer.credit_limit,
@@ -93,8 +92,8 @@ impl CustomerRepository for PostgresCustomerRepository {
             INSERT INTO customer_addresses (id, customer_id, address_type, address_line1, city, state_province, postal_code, country, is_default)
             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             "#,
-            address.id.to_string(),
-            address.customer_id.to_string(),
+            address.id,
+            address.customer_id,
             address_type_str,
             address.street_address,
             address.city,
@@ -112,22 +111,16 @@ impl CustomerRepository for PostgresCustomerRepository {
 
     async fn get_customer_by_id(&self, id: Uuid) -> ErpResult<Option<Customer>> {
         let row = sqlx::query!(
-            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
              FROM customers WHERE id = $1",
-            id.to_string()
+            id
         )
         .fetch_optional(&*self.pool)
         .await
         .map_err(|e| ErpError::database(format!("Failed to get customer by id: {}", e)))?;
 
         if let Some(row) = row {
-            let customer_type = match row.customer_type.as_deref() {
-                Some("individual") => CustomerType::Individual,
-                Some("business") => CustomerType::Business,
-                Some("wholesale") => CustomerType::Wholesale,
-                Some("retail") => CustomerType::Retail,
-                _ => CustomerType::Individual,
-            };
+            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
 
             let status = match row.status.as_deref() {
                 Some("active") => CustomerStatus::Active,
@@ -143,7 +136,7 @@ impl CustomerRepository for PostgresCustomerRepository {
 
             let customer = Customer {
                 id,
-                customer_code: format!("CUST-{}", &row.id[..8]),
+                customer_code: format!("CUST-{}", &row.id.to_string()[..8]),
                 first_name,
                 last_name,
                 company_name: row.company,
@@ -174,8 +167,8 @@ impl CustomerRepository for PostgresCustomerRepository {
         let partial_id = &customer_code[5..13]; // Extract the 8-char UUID prefix
 
         let row = sqlx::query!(
-            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
-             FROM customers WHERE SUBSTRING(id, 1, 8) = $1",
+            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+             FROM customers WHERE SUBSTRING(id::text, 1, 8) = $1",
             partial_id
         )
         .fetch_optional(&*self.pool)
@@ -183,13 +176,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         .map_err(|e| ErpError::database(format!("Failed to get customer by code: {}", e)))?;
 
         if let Some(row) = row {
-            let customer_type = match row.customer_type.as_deref() {
-                Some("individual") => CustomerType::Individual,
-                Some("business") => CustomerType::Business,
-                Some("wholesale") => CustomerType::Wholesale,
-                Some("retail") => CustomerType::Retail,
-                _ => CustomerType::Individual,
-            };
+            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
 
             let status = match row.status.as_deref() {
                 Some("active") => CustomerStatus::Active,
@@ -204,9 +191,8 @@ impl CustomerRepository for PostgresCustomerRepository {
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
-                id: uuid::Uuid::parse_str(&row.id)
-                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
-                customer_code: format!("CUST-{}", &row.id[..8]),
+                id: row.id,
+                customer_code: format!("CUST-{}", &row.id.to_string()[..8]),
                 first_name,
                 last_name,
                 company_name: row.company,
@@ -230,7 +216,7 @@ impl CustomerRepository for PostgresCustomerRepository {
 
     async fn get_customer_by_email(&self, email: &str) -> ErpResult<Option<Customer>> {
         let row = sqlx::query!(
-            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
              FROM customers WHERE email = $1",
             email
         )
@@ -239,13 +225,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         .map_err(|e| ErpError::database(format!("Failed to get customer by email: {}", e)))?;
 
         if let Some(row) = row {
-            let customer_type = match row.customer_type.as_deref() {
-                Some("individual") => CustomerType::Individual,
-                Some("business") => CustomerType::Business,
-                Some("wholesale") => CustomerType::Wholesale,
-                Some("retail") => CustomerType::Retail,
-                _ => CustomerType::Individual,
-            };
+            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
 
             let status = match row.status.as_deref() {
                 Some("active") => CustomerStatus::Active,
@@ -260,9 +240,8 @@ impl CustomerRepository for PostgresCustomerRepository {
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
-                id: uuid::Uuid::parse_str(&row.id)
-                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
-                customer_code: format!("CUST-{}", &row.id[..8]),
+                id: row.id,
+                customer_code: format!("CUST-{}", &row.id.to_string()[..8]),
                 first_name,
                 last_name,
                 company_name: row.company,
@@ -288,7 +267,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let rows = sqlx::query!(
             "SELECT id, customer_id, address_type, address_line1, address_line2, city, state_province, postal_code, country, is_default, created_at
              FROM customer_addresses WHERE customer_id = $1",
-            customer_id.to_string()
+            customer_id
         )
         .fetch_all(&*self.pool)
         .await
@@ -304,8 +283,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             };
 
             let address = CustomerAddress {
-                id: uuid::Uuid::parse_str(&row.id)
-                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
+                id: row.id,
                 customer_id,
                 address_type,
                 street_address: row.address_line1,
@@ -348,7 +326,7 @@ impl CustomerRepository for PostgresCustomerRepository {
 
         // Get customers with pagination (simplified for now)
         let rows = sqlx::query!(
-            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
              FROM customers ORDER BY created_at DESC LIMIT $1 OFFSET $2",
             per_page as i64,
             offset as i64
@@ -363,7 +341,6 @@ impl CustomerRepository for PostgresCustomerRepository {
             let name = row.name;
             let email = row.email;
             let phone = row.phone;
-            let customer_type_str = row.customer_type;
             let company = row.company;
             let tax_id = row.tax_id;
             let credit_limit = row.credit_limit;
@@ -372,14 +349,8 @@ impl CustomerRepository for PostgresCustomerRepository {
             let created_at = row.created_at;
             let updated_at = row.updated_at;
 
-            // Parse customer type
-            let customer_type = match customer_type_str.as_deref() {
-                Some("individual") => CustomerType::Individual,
-                Some("business") => CustomerType::Business,
-                Some("wholesale") => CustomerType::Wholesale,
-                Some("retail") => CustomerType::Retail,
-                _ => CustomerType::Individual,
-            };
+            // Default customer type since column doesn't exist
+            let customer_type = CustomerType::Individual;
 
             // Split name into first and last name (simplified)
             let name_parts: Vec<&str> = name.splitn(2, ' ').collect();
@@ -387,9 +358,8 @@ impl CustomerRepository for PostgresCustomerRepository {
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
-                id: uuid::Uuid::parse_str(&id)
-                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
-                customer_code: format!("CUST-{}", &id[..8]), // Generate code from ID
+                id,
+                customer_code: format!("CUST-{}", &id.to_string()[..8]), // Generate code from ID
                 first_name,
                 last_name,
                 company_name: company,
@@ -420,7 +390,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let full_name = format!("{} {}", customer.first_name, customer.last_name)
             .trim()
             .to_string();
-        let customer_type_str = match customer.customer_type {
+        let _customer_type_str = match customer.customer_type {
             CustomerType::Individual => "individual",
             CustomerType::Business => "business",
             CustomerType::Wholesale => "wholesale",
@@ -436,16 +406,15 @@ impl CustomerRepository for PostgresCustomerRepository {
         sqlx::query!(
             r#"
             UPDATE customers
-            SET name = $2, email = $3, phone = $4, customer_type = $5, company = $6,
-                tax_id = $7, credit_limit = $8, current_balance = $9, notes = $10,
-                status = $11, updated_at = CURRENT_TIMESTAMP
+            SET name = $2, email = $3, phone = $4, company = $5,
+                tax_id = $6, credit_limit = $7, current_balance = $8, notes = $9,
+                status = $10, updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
             "#,
-            id.to_string(),
+            id,
             full_name,
             customer.email,
             customer.phone,
-            customer_type_str,
             customer.company_name,
             customer.tax_id,
             customer.credit_limit,
@@ -471,7 +440,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             SET current_balance = $2, updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
             "#,
-            id.to_string(),
+            id,
             new_balance
         )
         .execute(&*self.pool)
@@ -490,7 +459,7 @@ impl CustomerRepository for PostgresCustomerRepository {
     async fn search_customers(&self, query: &str, limit: u32) -> ErpResult<Vec<Customer>> {
         let search_pattern = format!("%{}%", query);
         let rows = sqlx::query!(
-            "SELECT id, name, email, phone, customer_type, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
              FROM customers
              WHERE name ILIKE $1 OR email ILIKE $1 OR company ILIKE $1
              ORDER BY created_at DESC
@@ -504,22 +473,15 @@ impl CustomerRepository for PostgresCustomerRepository {
 
         let mut customers = Vec::new();
         for row in rows {
-            let customer_type = match row.customer_type.as_deref() {
-                Some("individual") => CustomerType::Individual,
-                Some("business") => CustomerType::Business,
-                Some("wholesale") => CustomerType::Wholesale,
-                Some("retail") => CustomerType::Retail,
-                _ => CustomerType::Individual,
-            };
+            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
 
             let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
             let first_name = name_parts.get(0).unwrap_or(&"").to_string();
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
-                id: uuid::Uuid::parse_str(&row.id)
-                    .map_err(|e| ErpError::validation_simple(&format!("Invalid UUID: {}", e)))?,
-                customer_code: format!("CUST-{}", &row.id[..8]),
+                id: row.id,
+                customer_code: format!("CUST-{}", &row.id.to_string()[..8]),
                 first_name,
                 last_name,
                 company_name: row.company,

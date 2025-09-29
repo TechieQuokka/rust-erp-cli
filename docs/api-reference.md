@@ -322,37 +322,153 @@ erp inventory low-stock --threshold 5
 
 #### 사용법
 ```bash
-erp customers add <고객명> [옵션]
+# 기본 방식 (전체 이름으로 입력)
+erp customers add [이름] [옵션]
+
+# 개별 방식 (성/이름 분리 입력)
+erp customers add --first-name <성> --last-name <이름> [옵션]
 ```
 
 #### 필수 인수
 | 인수 | 설명 |
 |------|------|
-| `<고객명>` | 고객의 이름 또는 회사명 |
+| `[이름]` | 고객의 전체 이름 (공백으로 성과 이름 구분) 또는 회사명 |
 
 #### 옵션
-| 옵션 | 설명 | 필수 |
-|------|------|------|
-| `--email <이메일>` | 고객 이메일 주소 | ✓ |
-| `--phone <전화번호>` | 고객 전화번호 | |
-| `--address <주소>` | 고객 주소 | |
-| `--company <회사명>` | 회사명 (개인 고객인 경우 생략) | |
-| `--notes <메모>` | 고객 관련 메모 | |
+| 옵션 | 설명 | 필수 | 비고 |
+|------|------|------|------|
+| `--email <이메일>` | 고객 이메일 주소 | ✓ | |
+| `--first-name <성>` | 고객의 성 | | 개별 입력 방식 사용 시 |
+| `--last-name <이름>` | 고객의 이름 | | 개별 입력 방식 사용 시 |
+| `--phone <전화번호>` | 고객 전화번호 | | 한국식 형식 지원 (010-XXXX-XXXX) |
+| `--address <주소>` | 고객 주소 | | |
+| `--company <회사명>` | 회사명 (기업 고객인 경우 필수) | | |
+| `--tax-id <사업자등록번호>` | 사업자등록번호 (기업 고객인 경우 필수) | | |
+| `--notes <메모>` | 고객 관련 메모 | | |
+
+#### 이름 입력 방식
+
+##### 방식 1: 전체 이름 (기존 방식)
+개인 고객의 경우 공백으로 성과 이름을 구분해서 입력합니다.
+```bash
+erp customers add "김 철수" --email "kim@example.com"
+```
+
+##### 방식 2: 성/이름 분리 (새로운 방식)
+성과 이름을 별도 옵션으로 입력합니다.
+```bash
+erp customers add --first-name "김" --last-name "철수" --email "kim@example.com"
+```
 
 #### 예시
+
+##### 배포된 바이너리 사용
 ```bash
-# 개인 고객 추가
-erp customers add "김철수" \
+# 개인 고객 추가 (기본 방식)
+erp customers add "김 철수" \
   --email "kim@example.com" \
   --phone "010-1234-5678" \
-  --address "서울시 강남구"
+  --address "서울시 강남구 테헤란로 123"
 
-# 기업 고객 추가
-erp customers add "ABC 회사" \
-  --email "contact@abc.com" \
+# 개인 고객 추가 (개별 방식)
+erp customers add \
+  --first-name "이" \
+  --last-name "영희" \
+  --email "lee@example.com" \
+  --phone "010-2345-6789" \
+  --address "서울시 서초구 반포대로 58"
+
+# 기업 고객 추가 (대표자 이름 개별 입력)
+erp customers add \
+  --first-name "박" \
+  --last-name "사장" \
+  --email "ceo@company.com" \
   --phone "02-1234-5678" \
   --company "ABC Corporation" \
+  --tax-id "1234567890" \
+  --address "서울시 강남구 역삼동 123" \
   --notes "주요 거래처"
+
+# 전화번호 다양한 형식 지원
+erp customers add "정 수진" \
+  --email "jung@example.com" \
+  --phone "(02) 1234-5678"  # 괄호 포함 형식
+
+erp customers add "최 민호" \
+  --email "choi@example.com" \
+  --phone "02-3456-7890"    # 지역번호 형식
+```
+
+##### 개발 환경에서 실행
+```bash
+# 개인 고객 추가 (기본 방식)
+cargo run -- customers add "김 철수" \
+  --email "kim@example.com" \
+  --phone "010-1234-5678" \
+  --address "서울시 강남구 테헤란로 123"
+
+# 개인 고객 추가 (개별 방식)
+cargo run -- customers add \
+  --first-name "이" \
+  --last-name "영희" \
+  --email "lee@example.com" \
+  --phone "010-2345-6789" \
+  --address "서울시 서초구 반포대로 58"
+
+# 기업 고객 추가
+cargo run -- customers add \
+  --first-name "박" \
+  --last-name "사장" \
+  --email "ceo@company.com" \
+  --phone "02-1234-5678" \
+  --company "ABC Corporation" \
+  --tax-id "1234567890" \
+  --address "서울시 강남구 역삼동 123" \
+  --notes "주요 거래처"
+```
+
+#### 응답
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440000",
+    "code": "CUST-김철-12345",
+    "name": "김 철수",
+    "email": "kim@example.com",
+    "phone": "010-1234-5678",
+    "type": "individual",
+    "status": "active",
+    "credit_limit": 1000.00,
+    "available_credit": 1000.00,
+    "company_name": null,
+    "tax_id": null,
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
+```
+
+##### 기업 고객 응답 예시
+```json
+{
+  "status": "success",
+  "data": {
+    "id": "550e8400-e29b-41d4-a716-446655440001",
+    "code": "CUST-박사-23456",
+    "name": "ABC Corporation (박 사장)",
+    "email": "ceo@company.com",
+    "phone": "02-1234-5678",
+    "type": "business",
+    "status": "active",
+    "credit_limit": 10000.00,
+    "available_credit": 10000.00,
+    "company_name": "ABC Corporation",
+    "tax_id": "1234567890",
+    "created_at": "2024-01-15T10:30:00Z",
+    "updated_at": "2024-01-15T10:30:00Z"
+  }
+}
 ```
 
 ### customers list - 고객 목록 조회

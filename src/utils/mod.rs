@@ -3,9 +3,9 @@
 
 pub mod crypto;
 pub mod error;
-pub mod validation;
 pub mod inventory_formatter;
 pub mod output_formats;
+pub mod validation;
 
 pub use crypto::*;
 pub use error::{ErpError, ErpResult};

@@ -1,6 +1,6 @@
+use sqlx::{Pool, Sqlite, SqlitePool};
 use std::sync::Once;
 use tempfile::TempDir;
-use sqlx::{SqlitePool, Pool, Sqlite};
 
 static INIT: Once = Once::new();
 
@@ -26,7 +26,11 @@ impl TestContext {
         // Run migrations
         sqlx::migrate!("./migrations").run(&db_pool).await?;
 
-        let config_path = temp_dir.path().join("config.toml").to_string_lossy().to_string();
+        let config_path = temp_dir
+            .path()
+            .join("config.toml")
+            .to_string_lossy()
+            .to_string();
 
         Ok(TestContext {
             _temp_dir: temp_dir,
@@ -78,9 +82,9 @@ impl TestContext {
 
 // Test data constants
 pub mod fixtures {
-    use uuid::Uuid;
     use rust_decimal::Decimal;
-    
+    use uuid::Uuid;
+
     pub const _TEST_USER_ID: &str = "550e8400-e29b-41d4-a716-446655440001";
     pub const _TEST_ADMIN_EMAIL: &str = "admin@test.com";
     pub const _TEST_USER_EMAIL: &str = "user@test.com";
