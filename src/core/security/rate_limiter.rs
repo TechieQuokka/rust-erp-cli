@@ -376,6 +376,12 @@ pub struct MockRateLimiter {
     allow_requests: bool,
 }
 
+impl Default for MockRateLimiter {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockRateLimiter {
     pub fn new() -> Self {
         Self {
@@ -639,8 +645,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_cleanup_old_entries() {
-        let mut config = RateLimitConfig::default();
-        config.cleanup_interval_minutes = 0; // Force cleanup every time
+        let config = RateLimitConfig {
+            cleanup_interval_minutes: 0, // Force cleanup every time
+            ..Default::default()
+        };
 
         let limiter = RateLimiter::new(config);
 
@@ -708,7 +716,7 @@ mod tests {
         mock.set_allow_requests(false);
         assert!(!mock.allow_request("test").await.unwrap());
 
-        assert!(mock.check_rate_limit("test", 10, 60).await.unwrap() == false);
+        assert!(!mock.check_rate_limit("test", 10, 60).await.unwrap());
         assert!(mock.reset_limit("test").await.is_ok());
     }
 }

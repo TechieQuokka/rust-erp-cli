@@ -12,6 +12,28 @@ use comfy_table::{modifiers::UTF8_ROUND_CORNERS, presets::UTF8_FULL, Table};
 use tracing::{error, info};
 use uuid::Uuid;
 
+struct AddProductParams<'a> {
+    name: &'a str,
+    quantity: i32,
+    price: f64,
+    cost: &'a Option<f64>,
+    category: &'a Option<String>,
+    sku: &'a Option<String>,
+    min_stock: &'a Option<i32>,
+    description: &'a Option<String>,
+}
+
+struct ListProductsParams<'a> {
+    low_stock: bool,
+    category: &'a Option<String>,
+    search: &'a Option<String>,
+    page: u32,
+    limit: u32,
+    format: &'a str,
+    sort_by: &'a str,
+    order: &'a str,
+}
+
 pub struct InventoryHandler;
 
 impl InventoryHandler {
@@ -27,18 +49,17 @@ impl InventoryHandler {
                 min_stock,
                 description,
             } => {
-                Self::handle_add(
+                let params = AddProductParams {
                     name,
-                    *quantity,
-                    *price,
+                    quantity: *quantity,
+                    price: *price,
                     cost,
                     category,
                     sku,
                     min_stock,
                     description,
-                    config,
-                )
-                .await
+                };
+                Self::handle_add(params, config).await
             }
             InventoryCommands::List {
                 low_stock,
@@ -50,10 +71,17 @@ impl InventoryHandler {
                 sort_by,
                 order,
             } => {
-                Self::handle_list(
-                    *low_stock, category, search, *page, *limit, format, sort_by, order, config,
-                )
-                .await
+                let params = ListProductsParams {
+                    low_stock: *low_stock,
+                    category,
+                    search,
+                    page: *page,
+                    limit: *limit,
+                    format,
+                    sort_by,
+                    order,
+                };
+                Self::handle_list(params, config).await
             }
             InventoryCommands::Update {
                 id,
@@ -71,17 +99,17 @@ impl InventoryHandler {
         }
     }
 
-    async fn handle_add(
-        name: &str,
-        quantity: i32,
-        price: f64,
-        cost: &Option<f64>,
-        category: &Option<String>,
-        sku: &Option<String>,
-        min_stock: &Option<i32>,
-        description: &Option<String>,
-        _config: &AppConfig,
-    ) -> ErpResult<()> {
+    async fn handle_add(params: AddProductParams<'_>, _config: &AppConfig) -> ErpResult<()> {
+        let AddProductParams {
+            name,
+            quantity,
+            price,
+            cost,
+            category,
+            sku,
+            min_stock,
+            description,
+        } = params;
         info!("Adding new product: {}", name);
 
         // 입력 검증
@@ -178,17 +206,17 @@ impl InventoryHandler {
         }
     }
 
-    async fn handle_list(
-        low_stock: bool,
-        category: &Option<String>,
-        search: &Option<String>,
-        page: u32,
-        limit: u32,
-        format: &str,
-        sort_by: &str,
-        order: &str,
-        _config: &AppConfig,
-    ) -> ErpResult<()> {
+    async fn handle_list(params: ListProductsParams<'_>, _config: &AppConfig) -> ErpResult<()> {
+        let ListProductsParams {
+            low_stock,
+            category,
+            search,
+            page,
+            limit,
+            format,
+            sort_by,
+            order,
+        } = params;
         info!(
             "Listing products - low_stock: {}, category: {:?}, search: {:?}, format: {}, sort_by: {}, order: {}",
             low_stock, category, search, format, sort_by, order

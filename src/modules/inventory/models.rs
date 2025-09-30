@@ -293,7 +293,7 @@ impl CreateInventoryItemRequest {
             weight: self.weight,
             dimensions: self.dimensions.clone(),
             barcode: self.barcode.clone(),
-            supplier_id: self.supplier_id.clone(),
+            supplier_id: self.supplier_id,
         }
     }
 
@@ -359,7 +359,7 @@ impl UpdateInventoryItemRequest {
             weight: self.weight,
             dimensions: self.dimensions.clone(),
             barcode: self.barcode.clone(),
-            supplier_id: self.supplier_id.clone(),
+            supplier_id: self.supplier_id,
         }
     }
 }

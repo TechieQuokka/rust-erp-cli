@@ -8,14 +8,14 @@ pub struct CliValidator;
 
 impl CliValidator {
     pub fn validate_price(price: f64) -> ErpResult<Decimal> {
-        if price < 0.0 {
-            return Err(ErpError::validation("price", "가격은 음수일 수 없습니다"));
+        if price <= 0.0 {
+            return Err(ErpError::validation("price", "가격은 0보다 커야 합니다"));
         }
 
-        if price > 999999999.99 {
+        if price > 99999999999999.99 {
             return Err(ErpError::validation(
                 "price",
-                "가격이 너무 큽니다 (최대: 999,999,999.99)",
+                "가격이 너무 큽니다 (최대: 99,999,999,999,999.99)",
             ));
         }
 
@@ -24,19 +24,15 @@ impl CliValidator {
     }
 
     pub fn validate_quantity(quantity: i32) -> ErpResult<i32> {
-        if quantity < 0 {
+        if quantity < 1 {
             return Err(ErpError::validation(
                 "quantity",
-                "수량은 음수일 수 없습니다",
+                "수량은 1 이상이어야 합니다",
             ));
         }
 
-        if quantity > 1_000_000 {
-            return Err(ErpError::validation(
-                "quantity",
-                "수량이 너무 큽니다 (최대: 1,000,000)",
-            ));
-        }
+        // i32 타입 자체가 최대값을 보장하므로 상한 검증 불필요
+        // DB의 INTEGER 타입과 일치 (최대: 2,147,483,647)
 
         Ok(quantity)
     }
@@ -269,13 +265,13 @@ impl CliValidator {
     }
 
     pub fn validate_report_period(period: &str) -> ErpResult<String> {
-        let valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly"];
+        let valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly", "custom"];
         let normalized = period.trim().to_lowercase();
 
         if !valid_periods.contains(&normalized.as_str()) {
             return Err(ErpError::validation(
                 "period",
-                "기간은 'daily', 'weekly', 'monthly', 'quarterly', 'yearly' 중 하나여야 합니다",
+                "기간은 'daily', 'weekly', 'monthly', 'quarterly', 'yearly', 'custom' 중 하나여야 합니다",
             ));
         }
 

@@ -54,7 +54,7 @@ pub async fn initialize_reports_module(
                 .fetch_one(pg_pool)
                 .await
                 .map_err(|e| {
-                    crate::utils::error::ErpError::database(&format!(
+                    crate::utils::error::ErpError::database(format!(
                         "테이블 존재 확인 중 오류 발생 ({}): {}",
                         table, e
                     ))

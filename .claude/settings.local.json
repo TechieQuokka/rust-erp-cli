@@ -19,7 +19,14 @@
       "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f migrations/010_convert_varchar_to_uuid.sql)",
       "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f fix_uuid_migration.sql)",
       "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f migrations/008_update_customer_schema.sql)",
-      "mcp__sequential-thinking__sequentialthinking"
+      "mcp__sequential-thinking__sequentialthinking",
+      "Bash(mkdir:*)",
+      "Bash(Select-String -Pattern \"VERIFY001\" -CaseSensitive)",
+      "Bash(Select-String -Pattern \"TEST004\" -CaseSensitive)",
+      "Bash(if not exist reports mkdir reports)",
+      "Bash(test:*)",
+      "Bash($env:PGPASSWORD=\"2147483647\")",
+      "Bash(cat:*)"
     ],
     "deny": [],
     "ask": []

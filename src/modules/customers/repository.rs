@@ -152,7 +152,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             };
 
             let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
-            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let first_name = name_parts.first().unwrap_or(&"").to_string();
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
@@ -208,7 +208,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             };
 
             let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
-            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let first_name = name_parts.first().unwrap_or(&"").to_string();
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
@@ -257,7 +257,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             };
 
             let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
-            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let first_name = name_parts.first().unwrap_or(&"").to_string();
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
@@ -451,7 +451,7 @@ impl CustomerRepository for PostgresCustomerRepository {
 
             // Split name into first and last name (simplified)
             let name_parts: Vec<&str> = name.splitn(2, ' ').collect();
-            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let first_name = name_parts.first().unwrap_or(&"").to_string();
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
@@ -605,7 +605,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
 
             let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
-            let first_name = name_parts.get(0).unwrap_or(&"").to_string();
+            let first_name = name_parts.first().unwrap_or(&"").to_string();
             let last_name = name_parts.get(1).unwrap_or(&"").to_string();
 
             let customer = Customer {
@@ -715,7 +715,7 @@ impl CustomerRepository for MockCustomerRepository {
         let mut addresses = self.addresses.lock().unwrap();
         let customer_addresses = addresses
             .entry(address.customer_id)
-            .or_insert_with(Vec::new);
+            .or_default();
 
         // If this is a default address, unset other defaults
         if address.is_default {
@@ -778,7 +778,7 @@ impl CustomerRepository for MockCustomerRepository {
                     || c.customer_code.to_lowercase().contains(&search_lower)
                     || c.company_name
                         .as_ref()
-                        .map_or(false, |name| name.to_lowercase().contains(&search_lower))
+                        .is_some_and(|name| name.to_lowercase().contains(&search_lower))
             });
         }
         if let Some(has_outstanding) = filter.has_outstanding_balance {
@@ -861,8 +861,8 @@ impl CustomerRepository for MockCustomerRepository {
 
     async fn update_customer(&self, id: Uuid, customer: &Customer) -> ErpResult<()> {
         let mut customers = self.customers.lock().unwrap();
-        if customers.contains_key(&id) {
-            customers.insert(id, customer.clone());
+        if let std::collections::hash_map::Entry::Occupied(mut e) = customers.entry(id) {
+            e.insert(customer.clone());
             Ok(())
         } else {
             Err(ErpError::not_found_simple("Customer not found"))
@@ -908,7 +908,7 @@ impl CustomerRepository for MockCustomerRepository {
                     || c.customer_code.to_lowercase().contains(&query_lower)
                     || c.company_name
                         .as_ref()
-                        .map_or(false, |name| name.to_lowercase().contains(&query_lower))
+                        .is_some_and(|name| name.to_lowercase().contains(&query_lower))
             })
             .cloned()
             .collect();

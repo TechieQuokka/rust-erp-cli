@@ -74,21 +74,21 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         sqlx::query(query)
-            .bind(&order.id)
+            .bind(order.id)
             .bind(&order.order_number)
-            .bind(&order.customer_id)
-            .bind(&order.order_date)
-            .bind(&order.status)
-            .bind(&order.total_amount)
-            .bind(&order.tax_amount)
-            .bind(&order.discount_amount)
+            .bind(order.customer_id)
+            .bind(order.order_date)
+            .bind(order.status)
+            .bind(order.total_amount)
+            .bind(order.tax_amount)
+            .bind(order.discount_amount)
             .bind(&order.shipping_address)
             .bind(&order.billing_address)
-            .bind(&order.payment_method)
-            .bind(&order.payment_status)
+            .bind(order.payment_method)
+            .bind(order.payment_status)
             .bind(&order.notes)
-            .bind(&order.created_at)
-            .bind(&order.updated_at)
+            .bind(order.created_at)
+            .bind(order.updated_at)
             .execute(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -105,14 +105,14 @@ impl SalesRepository for PostgresSalesRepository {
 
         for item in items {
             sqlx::query(query)
-                .bind(&item.id)
-                .bind(&item.order_id)
-                .bind(&item.product_id)
-                .bind(&item.quantity)
-                .bind(&item.unit_price)
-                .bind(&item.discount)
-                .bind(&item.line_total)
-                .bind(&item.created_at)
+                .bind(item.id)
+                .bind(item.order_id)
+                .bind(item.product_id)
+                .bind(item.quantity)
+                .bind(item.unit_price)
+                .bind(item.discount)
+                .bind(item.line_total)
+                .bind(item.created_at)
                 .execute(&self.pool)
                 .await
                 .map_err(ErpError::Database)?;
@@ -130,7 +130,7 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         let order = sqlx::query_as::<_, SalesOrder>(query)
-            .bind(&id)
+            .bind(id)
             .fetch_optional(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -162,7 +162,7 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         let items = sqlx::query_as::<_, SalesOrderItem>(query)
-            .bind(&order_id)
+            .bind(order_id)
             .fetch_all(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -185,7 +185,7 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         let rows = sqlx::query(query)
-            .bind(&order_id)
+            .bind(order_id)
             .fetch_all(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -272,7 +272,7 @@ impl SalesRepository for PostgresSalesRepository {
             sqlx_query = sqlx_query.bind(notes);
         }
 
-        sqlx_query = sqlx_query.bind(Utc::now()).bind(&id);
+        sqlx_query = sqlx_query.bind(Utc::now()).bind(id);
 
         sqlx_query
             .execute(&self.pool)
@@ -286,9 +286,9 @@ impl SalesRepository for PostgresSalesRepository {
         let query = "UPDATE sales_orders SET status = $1, updated_at = $2 WHERE id = $3";
 
         sqlx::query(query)
-            .bind(&status)
+            .bind(status)
             .bind(Utc::now())
-            .bind(&id)
+            .bind(id)
             .execute(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -304,9 +304,9 @@ impl SalesRepository for PostgresSalesRepository {
         let query = "UPDATE sales_orders SET payment_status = $1, updated_at = $2 WHERE id = $3";
 
         sqlx::query(query)
-            .bind(&payment_status)
+            .bind(payment_status)
             .bind(Utc::now())
-            .bind(&id)
+            .bind(id)
             .execute(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -318,13 +318,13 @@ impl SalesRepository for PostgresSalesRepository {
         let mut tx = self.pool.begin().await.map_err(ErpError::Database)?;
 
         sqlx::query("DELETE FROM sales_order_items WHERE order_id = $1")
-            .bind(&id)
+            .bind(id)
             .execute(&mut *tx)
             .await
             .map_err(ErpError::Database)?;
 
         sqlx::query("DELETE FROM sales_orders WHERE id = $1")
-            .bind(&id)
+            .bind(id)
             .execute(&mut *tx)
             .await
             .map_err(ErpError::Database)?;
@@ -418,7 +418,7 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         let orders = sqlx::query_as::<_, SalesOrder>(query)
-            .bind(&customer_id)
+            .bind(customer_id)
             .fetch_all(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -441,8 +441,8 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         let orders = sqlx::query_as::<_, SalesOrder>(query)
-            .bind(&start_date)
-            .bind(&end_date)
+            .bind(start_date)
+            .bind(end_date)
             .fetch_all(&self.pool)
             .await
             .map_err(ErpError::Database)?;
@@ -572,7 +572,7 @@ impl SalesRepository for PostgresSalesRepository {
         "#;
 
         let row = sqlx::query(query)
-            .bind(&order_id)
+            .bind(order_id)
             .fetch_one(&self.pool)
             .await
             .map_err(ErpError::Database)?;

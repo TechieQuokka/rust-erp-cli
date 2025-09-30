@@ -74,6 +74,7 @@ erp --help
 #### 2. 플랫폼별 설치
 
 **Linux/macOS:**
+
 ```bash
 # 다운로드한 바이너리를 실행 가능하게 만들기
 chmod +x erp-linux-amd64  # 또는 erp-macos-amd64
@@ -88,6 +89,7 @@ export PATH="$HOME/.local/bin:$PATH"
 ```
 
 **Windows:**
+
 ```cmd
 # 다운로드한 erp-windows-amd64.exe를 원하는 위치에 저장
 # 예: C:\Program Files\ERP\erp.exe
@@ -109,24 +111,28 @@ source ~/.cargo/env
 #### 2. 의존성 설치
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt update
 sudo apt install -y build-essential libssl-dev libpq-dev pkg-config
 ```
 
 **CentOS/RHEL:**
+
 ```bash
 sudo yum groupinstall -y "Development Tools"
 sudo yum install -y openssl-devel postgresql-devel pkg-config
 ```
 
 **macOS:**
+
 ```bash
 # Homebrew 필요
 brew install postgresql openssl pkg-config
 ```
 
 **Windows:**
+
 ```cmd
 # Visual Studio Build Tools 설치 필요
 # https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
@@ -169,7 +175,7 @@ docker run --rm -v $(pwd)/data:/app/data example/erp:latest
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
+version: "3.8"
 
 services:
   erp:
@@ -275,6 +281,7 @@ erp migrate init
 #### 1. PostgreSQL 설치
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt install postgresql postgresql-contrib
 sudo systemctl start postgresql
@@ -282,6 +289,7 @@ sudo systemctl enable postgresql
 ```
 
 **CentOS/RHEL:**
+
 ```bash
 sudo yum install postgresql-server postgresql-contrib
 sudo postgresql-setup initdb
@@ -290,6 +298,7 @@ sudo systemctl enable postgresql
 ```
 
 **macOS:**
+
 ```bash
 brew install postgresql
 brew services start postgresql
@@ -326,6 +335,7 @@ echo 'DATABASE_URL="postgresql://erp_user:secure_password@localhost:5432/erp_db"
 #### 설치
 
 **Ubuntu/Debian:**
+
 ```bash
 sudo apt install redis-server
 sudo systemctl start redis-server
@@ -333,12 +343,14 @@ sudo systemctl enable redis-server
 ```
 
 **macOS:**
+
 ```bash
 brew install redis
 brew services start redis
 ```
 
 **Windows:**
+
 ```bash
 # Windows Subsystem for Linux 사용 권장
 # 또는 Redis for Windows: https://github.com/microsoftarchive/redis/releases
@@ -420,11 +432,13 @@ export ERP_ENV="production"  # development, staging, production
 ### 설정 파일 위치
 
 **Linux/macOS:**
+
 - 전역 설정: `/etc/erp/config.toml`
 - 사용자 설정: `~/.config/erp/config.toml`
 - 프로젝트 설정: `./config/config.toml`
 
 **Windows:**
+
 - 전역 설정: `C:\ProgramData\ERP\config.toml`
 - 사용자 설정: `%APPDATA%\ERP\config.toml`
 - 프로젝트 설정: `.\config\config.toml`
@@ -510,6 +524,7 @@ choco upgrade erp-cli
 **증상:** `command not found: erp` 또는 `'erp'은(는) 내부 또는 외부 명령...`
 
 **해결방법:**
+
 ```bash
 # PATH 확인
 echo $PATH  # Linux/macOS
@@ -528,6 +543,7 @@ export PATH="/usr/local/bin:$PATH"  # Linux/macOS
 **증상:** `Database connection failed`
 
 **해결방법:**
+
 ```bash
 # 연결 문자열 확인
 erp config get database.url
@@ -545,6 +561,7 @@ erp migrate test
 **증상:** `Permission denied`
 
 **해결방법:**
+
 ```bash
 # 실행 권한 추가
 chmod +x /usr/local/bin/erp
@@ -561,6 +578,7 @@ sudo cp erp /usr/local/bin/
 **증상:** `Port 8080 is already in use`
 
 **해결방법:**
+
 ```bash
 # 사용 중인 포트 확인
 netstat -tulpn | grep 8080  # Linux
@@ -576,10 +594,12 @@ erp server start --port 8081
 #### 로그 파일 위치
 
 **Linux/macOS:**
+
 - `/var/log/erp/erp.log` (시스템 서비스)
 - `~/.local/share/erp/logs/erp.log` (사용자 실행)
 
 **Windows:**
+
 - `C:\ProgramData\ERP\logs\erp.log` (시스템 서비스)
 - `%APPDATA%\ERP\logs\erp.log` (사용자 실행)
 
@@ -623,19 +643,6 @@ erp cache status
 ```
 
 ## 지원 및 문의
-
-### 문서 및 리소스
-
-- [사용자 가이드](user-guide.md)
-- [개발자 가이드](development.md)
-- [API 레퍼런스](api-reference.md)
-- [GitHub 저장소](https://github.com/example/erp-cli)
-
-### 문제 신고
-
-- [GitHub Issues](https://github.com/example/erp-cli/issues)
-- [Discord 커뮤니티](https://discord.gg/erp-cli)
-- 이메일: support@example.com
 
 ### 자주 묻는 질문 (FAQ)
 

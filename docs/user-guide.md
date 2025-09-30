@@ -53,7 +53,7 @@ erp config set admin_password "secure_password"
 #### 제품 추가
 
 ```bash
-# 기본 제품 추가
+# 기본 제품 추가 (원가는 가격의 70%로 자동 계산)
 erp inventory add "MacBook Pro" --sku "MBP001" --quantity 10 --price 1999.99
 
 # 카테고리와 설명 포함
@@ -63,6 +63,15 @@ erp inventory add "iPhone 15" \
   --quantity 50 \
   --price 799.99 \
   --description "최신 iPhone 모델"
+
+# 원가를 직접 지정
+erp inventory add "iPad Pro" \
+  --sku "IPAD001" \
+  --category "전자제품" \
+  --quantity 25 \
+  --price 1299.99 \
+  --cost 900.00 \
+  --description "프로용 태블릿"
 ```
 
 #### 재고 목록 조회
@@ -83,9 +92,14 @@ erp inventory list --format json
 # 가격순 정렬
 erp inventory list --sort-by price --order desc
 
+# 원가순 정렬
+erp inventory list --sort-by cost --order asc
+
 # 낮은 재고 알림
 erp inventory low-stock --threshold 10
 ```
+
+**참고**: 재고 목록에는 각 제품의 SKU, 제품명, 카테고리, 가격, **원가**, 수량, 상태, 마진율이 표시됩니다.
 
 #### 재고 업데이트
 
@@ -114,18 +128,36 @@ erp inventory remove MBP001 --force
 
 #### 고객 추가
 
+고객 이름은 두 가지 방식으로 입력할 수 있습니다:
+
+**방식 1: 전체 이름 입력** (공백으로 성과 이름 구분)
 ```bash
 # 개인 고객 추가
-erp customers add "김철수" \
+erp customers add "김 철수" \
   --email "kim@example.com" \
   --phone "010-1234-5678" \
   --address "서울시 강남구"
+```
 
-# 기업 고객 추가
-erp customers add "ABC 회사" \
-  --email "contact@abc.com" \
+**방식 2: 성/이름 분리 입력** (더 명확한 방식)
+```bash
+# 개인 고객 추가
+erp customers add \
+  --first-name "이" \
+  --last-name "영희" \
+  --email "lee@example.com" \
+  --phone "010-2345-6789" \
+  --address "서울시 서초구"
+
+# 기업 고객 추가 (대표자 이름 분리 입력)
+erp customers add \
+  --first-name "박" \
+  --last-name "사장" \
+  --email "ceo@company.com" \
   --phone "02-1234-5678" \
   --company "ABC Corporation" \
+  --tax-id "1234567890" \
+  --address "서울시 강남구 역삼동 123" \
   --notes "주요 거래처"
 ```
 
@@ -335,6 +367,50 @@ erp config set logging.level "debug"
 
 # 데이터베이스 URL 설정
 erp config set database.url "postgresql://user:pass@localhost/erp"
+
+# 세금률 설정 (백분율)
+erp config set tax_rate "10.0"   # 10% 부가세
+erp config set tax_rate "5.0"    # 5% 세율
+erp config set tax_rate "0.0"    # 세금 없음
+```
+
+#### 세금률 관리
+
+시스템의 세금률은 모든 판매 주문에 자동으로 적용됩니다.
+
+```bash
+# 현재 세금률 확인
+erp config get tax_rate
+
+# 한국 부가세 10% 설정
+erp config set tax_rate "10.0"
+
+# 미국 판매세 8.25% 설정
+erp config set tax_rate "8.25"
+
+# 세금 면제 (0% 설정)
+erp config set tax_rate "0.0"
+```
+
+**세금률 적용 정보:**
+- **자동 적용**: 모든 새로운 주문에 자동으로 적용됩니다
+- **즉시 반영**: 설정 변경 후 바로 다음 주문부터 적용됩니다
+- **기존 주문**: 이미 생성된 주문의 세금률은 변경되지 않습니다
+- **유효 범위**: 0.0% ~ 100.0%
+- **기본값**: 10.0% (한국 부가세)
+
+**주문 생성 시 세금 계산 예시:**
+```bash
+# 세금률 10%로 설정
+erp config set tax_rate "10.0"
+
+# 주문 생성 (₩150,000 상품)
+erp sales create-order --customer-id CUST-12345678 --product-sku SKU-PRODUCT --quantity 1
+
+# 결과:
+# 소계: ₩150,000
+# 세금: ₩15,000 (150,000 × 10%)
+# 총액: ₩165,000
 ```
 
 #### 설정 초기화
@@ -452,6 +528,7 @@ erp audit list --user "admin" --action "login"
 - `--format yaml`: YAML 형식
 
 예시:
+
 ```bash
 erp inventory list --format json
 erp customers list --format csv > customers.csv
@@ -472,6 +549,7 @@ erp customers list --format csv > customers.csv
 ### 일반적인 오류
 
 1. **데이터베이스 연결 오류**
+
    ```bash
    # 데이터베이스 상태 확인
    erp status
@@ -481,6 +559,7 @@ erp customers list --format csv > customers.csv
    ```
 
 2. **권한 오류**
+
    ```bash
    # 현재 사용자 확인
    erp whoami
@@ -490,6 +569,7 @@ erp customers list --format csv > customers.csv
    ```
 
 3. **설정 오류**
+
    ```bash
    # 설정 검증
    erp config validate
@@ -501,6 +581,7 @@ erp customers list --format csv > customers.csv
 ### 로그 확인
 
 로그는 다음 위치에 저장됩니다:
+
 - Linux/macOS: `~/.local/share/erp/logs/`
 - Windows: `%APPDATA%\erp\logs\`
 
@@ -581,12 +662,6 @@ curl http://localhost:8080/api/docs
 3. **접근 권한 최소화**
 4. **감사 로그 모니터링**
 5. **SSL/TLS 사용 (프로덕션)**
-
-## 지원 및 문의
-
-- 문서: [프로젝트 Wiki](링크)
-- 이슈 트래킹: [GitHub Issues](링크)
-- 이메일: support@company.com
 
 ## 라이선스
 

@@ -29,7 +29,7 @@ impl ConfigService {
         if self.repository.key_exists(&request.key).await? {
             return Err(ErpError::validation(
                 "key",
-                &format!("Configuration key '{}' already exists", request.key),
+                format!("Configuration key '{}' already exists", request.key),
             ));
         }
 
@@ -243,7 +243,7 @@ impl ConfigService {
         let configs = self.list_configs(filter).await?;
 
         serde_json::to_string_pretty(&configs)
-            .map_err(|e| ErpError::internal(&format!("Failed to export configs: {}", e)))
+            .map_err(|e| ErpError::internal(format!("Failed to export configs: {}", e)))
     }
 
     /// 설정 복원 (JSON에서 가져오기)
@@ -253,7 +253,7 @@ impl ConfigService {
         overwrite: bool,
     ) -> ErpResult<ImportResult> {
         let configs: Vec<ConfigItem> = serde_json::from_str(json_data)
-            .map_err(|e| ErpError::validation("json_data", &format!("Invalid JSON: {}", e)))?;
+            .map_err(|e| ErpError::validation("json_data", format!("Invalid JSON: {}", e)))?;
 
         let mut result = ImportResult {
             imported_count: 0,
@@ -345,7 +345,7 @@ impl ConfigService {
         if !validation.is_valid {
             return Err(ErpError::validation(
                 "request",
-                &validation.errors.join(", "),
+                validation.errors.join(", "),
             ));
         }
 
@@ -373,7 +373,7 @@ impl ConfigService {
         if !validation.is_valid {
             return Err(ErpError::validation(
                 "request",
-                &validation.errors.join(", "),
+                validation.errors.join(", "),
             ));
         }
 
@@ -385,20 +385,27 @@ impl ConfigService {
         const DEFAULT_TAX_RATE: &str = "10.0";
 
         match self.get_config("tax_rate").await? {
-            Some(config) => {
-                config.value.parse::<f64>()
-                    .map_err(|_| ErpError::validation("tax_rate", "Invalid tax rate format"))
-                    .and_then(|rate| {
-                        if rate < 0.0 || rate > 100.0 {
-                            Err(ErpError::validation("tax_rate", "Tax rate must be between 0.0 and 100.0"))
-                        } else {
-                            Ok(Decimal::from_f64_retain(rate).unwrap_or(Decimal::from_f64_retain(10.0).unwrap()))
-                        }
-                    })
-            }
+            Some(config) => config
+                .value
+                .parse::<f64>()
+                .map_err(|_| ErpError::validation("tax_rate", "Invalid tax rate format"))
+                .and_then(|rate| {
+                    if !(0.0..=100.0).contains(&rate) {
+                        Err(ErpError::validation(
+                            "tax_rate",
+                            "Tax rate must be between 0.0 and 100.0",
+                        ))
+                    } else {
+                        Ok(Decimal::from_f64_retain(rate)
+                            .unwrap_or(Decimal::from_f64_retain(10.0).unwrap()))
+                    }
+                }),
             None => {
                 // 기본값 설정
-                info!("Tax rate not configured, using default: {}%", DEFAULT_TAX_RATE);
+                info!(
+                    "Tax rate not configured, using default: {}%",
+                    DEFAULT_TAX_RATE
+                );
                 Ok(Decimal::from_f64_retain(10.0).unwrap())
             }
         }
@@ -406,8 +413,11 @@ impl ConfigService {
 
     /// 세금률 설정
     pub async fn set_tax_rate(&self, rate: f64) -> ErpResult<()> {
-        if rate < 0.0 || rate > 100.0 {
-            return Err(ErpError::validation("tax_rate", "Tax rate must be between 0.0 and 100.0"));
+        if !(0.0..=100.0).contains(&rate) {
+            return Err(ErpError::validation(
+                "tax_rate",
+                "Tax rate must be between 0.0 and 100.0",
+            ));
         }
 
         let request = CreateConfigRequest {

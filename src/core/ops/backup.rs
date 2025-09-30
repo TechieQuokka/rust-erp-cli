@@ -299,7 +299,7 @@ impl BackupService {
             .repository
             .get_metadata(options.backup_id)
             .await?
-            .ok_or_else(|| ErpError::not_found("backup", &options.backup_id.to_string()))?;
+            .ok_or_else(|| ErpError::not_found("backup", options.backup_id.to_string()))?;
 
         if metadata.status != BackupStatus::Completed && metadata.status != BackupStatus::Verified {
             return Err(ErpError::validation(
@@ -343,7 +343,7 @@ impl BackupService {
         if !metadata.file_path.exists() {
             return Err(ErpError::not_found(
                 "backup_file",
-                &metadata.file_path.display().to_string(),
+                metadata.file_path.display().to_string(),
             ));
         }
 
@@ -383,7 +383,7 @@ impl BackupService {
             .repository
             .get_metadata(backup_id)
             .await?
-            .ok_or_else(|| ErpError::not_found("backup", &backup_id.to_string()))?;
+            .ok_or_else(|| ErpError::not_found("backup", backup_id.to_string()))?;
 
         // Delete backup file
         if metadata.file_path.exists() {
@@ -579,7 +579,7 @@ impl BackupService {
         if !db_path.exists() {
             return Err(ErpError::not_found(
                 "sqlite_database",
-                &db_path.display().to_string(),
+                db_path.display().to_string(),
             ));
         }
 
@@ -848,20 +848,24 @@ impl BackupService {
     }
 
     fn count_files_in_dir(&self, dir_path: &Path) -> ErpResult<usize> {
-        let mut count = 0;
+        fn count_recursive(path: &Path) -> ErpResult<usize> {
+            let mut count = 0;
 
-        for entry in fs::read_dir(dir_path)? {
-            let entry = entry?;
-            let path = entry.path();
+            for entry in fs::read_dir(path)? {
+                let entry = entry?;
+                let entry_path = entry.path();
 
-            if path.is_file() {
-                count += 1;
-            } else if path.is_dir() {
-                count += self.count_files_in_dir(&path)?;
+                if entry_path.is_file() {
+                    count += 1;
+                } else if entry_path.is_dir() {
+                    count += count_recursive(&entry_path)?;
+                }
             }
+
+            Ok(count)
         }
 
-        Ok(count)
+        count_recursive(dir_path)
     }
 }
 
@@ -1061,8 +1065,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_backup_service_disabled() {
-        let mut config = BackupConfig::default();
-        config.enabled = false;
+        let config = BackupConfig {
+            enabled: false,
+            ..Default::default()
+        };
 
         let repository = Box::new(MockBackupRepository::new());
         let service = BackupService::new(config, repository);

@@ -148,7 +148,7 @@ impl ReportsService {
         if let Some(parent) = Path::new(&output_path).parent() {
             fs::create_dir_all(parent)
                 .await
-                .map_err(|e| ErpError::io(&format!("보고서 디렉토리 생성 실패: {}", e)))?;
+                .map_err(|e| ErpError::io(format!("보고서 디렉토리 생성 실패: {}", e)))?;
         }
 
         match report_type {
@@ -206,7 +206,7 @@ impl ReportsService {
 
     /// 매출 트렌드 분석
     pub async fn analyze_sales_trend(&self, months: u32) -> ErpResult<SalesTrendAnalysis> {
-        if months < 2 || months > 24 {
+        if !(2..=24).contains(&months) {
             return Err(ErpError::validation(
                 "months",
                 "트렌드 분석은 2-24개월 기간이 필요합니다",
@@ -371,22 +371,22 @@ impl ReportsService {
         match format {
             ReportFormat::Json => {
                 let json = serde_json::to_string_pretty(report)
-                    .map_err(|e| ErpError::serialization(&format!("JSON 직렬화 실패: {}", e)))?;
+                    .map_err(|e| ErpError::serialization(format!("JSON 직렬화 실패: {}", e)))?;
                 fs::write(output_path, json)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Csv => {
                 let csv = self.generate_sales_summary_csv(report)?;
                 fs::write(output_path, csv)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Html => {
                 let html = self.generate_sales_summary_html(report)?;
                 fs::write(output_path, html)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Console => {
                 // 콘솔 출력은 별도 처리
@@ -410,22 +410,22 @@ impl ReportsService {
         match format {
             ReportFormat::Json => {
                 let json = serde_json::to_string_pretty(report)
-                    .map_err(|e| ErpError::serialization(&format!("JSON 직렬화 실패: {}", e)))?;
+                    .map_err(|e| ErpError::serialization(format!("JSON 직렬화 실패: {}", e)))?;
                 fs::write(output_path, json)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Csv => {
                 let csv = self.generate_inventory_status_csv(report)?;
                 fs::write(output_path, csv)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Html => {
                 let html = self.generate_inventory_status_html(report)?;
                 fs::write(output_path, html)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Console => return Ok(()),
             ReportFormat::Pdf => {
@@ -446,22 +446,22 @@ impl ReportsService {
         match format {
             ReportFormat::Json => {
                 let json = serde_json::to_string_pretty(report)
-                    .map_err(|e| ErpError::serialization(&format!("JSON 직렬화 실패: {}", e)))?;
+                    .map_err(|e| ErpError::serialization(format!("JSON 직렬화 실패: {}", e)))?;
                 fs::write(output_path, json)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Csv => {
                 let csv = self.generate_customer_analysis_csv(report)?;
                 fs::write(output_path, csv)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Html => {
                 let html = self.generate_customer_analysis_html(report)?;
                 fs::write(output_path, html)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Console => return Ok(()),
             ReportFormat::Pdf => {
@@ -482,22 +482,22 @@ impl ReportsService {
         match format {
             ReportFormat::Json => {
                 let json = serde_json::to_string_pretty(report)
-                    .map_err(|e| ErpError::serialization(&format!("JSON 직렬화 실패: {}", e)))?;
+                    .map_err(|e| ErpError::serialization(format!("JSON 직렬화 실패: {}", e)))?;
                 fs::write(output_path, json)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Csv => {
                 let csv = self.generate_financial_overview_csv(report)?;
                 fs::write(output_path, csv)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Html => {
                 let html = self.generate_financial_overview_html(report)?;
                 fs::write(output_path, html)
                     .await
-                    .map_err(|e| ErpError::io(&format!("파일 쓰기 실패: {}", e)))?;
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
             ReportFormat::Console => return Ok(()),
             ReportFormat::Pdf => {

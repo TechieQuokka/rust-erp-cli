@@ -510,6 +510,7 @@ erp reports sales-summary --period monthly
 ```
 
 각 명령어는 일관된 패턴을 따릅니다:
+
 - 옵션 검증
 - 출력 형식 지원 (`tabled`, `comfy-table` 크레이트 사용)
 - 에러 처리
@@ -540,20 +541,20 @@ jobs:
           --health-retries 5
 
     steps:
-    - uses: actions/checkout@v3
-    - name: Install Rust
-      uses: actions-rs/toolchain@v1
-      with:
-        toolchain: stable
+      - uses: actions/checkout@v3
+      - name: Install Rust
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
 
-    - name: Run tests
-      run: cargo test
+      - name: Run tests
+        run: cargo test
 
-    - name: Run clippy
-      run: cargo clippy -- -D warnings
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
 
-    - name: Check formatting
-      run: cargo fmt -- --check
+      - name: Check formatting
+        run: cargo fmt -- --check
 ```
 
 ## 문제 해결
@@ -561,12 +562,14 @@ jobs:
 ### 일반적인 개발 이슈
 
 1. **컴파일 오류**
+
    ```bash
    cargo check
    cargo clippy
    ```
 
 2. **테스트 실패**
+
    ```bash
    cargo test -- --nocapture
    RUST_LOG=debug cargo test
@@ -612,6 +615,7 @@ git push -u origin hotfix/critical-security-fix
 ### 코드 리뷰 프로세스
 
 1. **Pre-commit 체크리스트**
+
    ```bash
    # 코드 포맷팅
    cargo fmt --check
@@ -627,6 +631,7 @@ git push -u origin hotfix/critical-security-fix
    ```
 
 2. **Pull Request 생성**
+
    - 명확한 제목과 설명
    - 변경사항 요약
    - 테스트 계획 포함
@@ -701,9 +706,9 @@ name: Continuous Integration
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main, develop]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -729,54 +734,54 @@ jobs:
           --health-retries 5
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Install Rust
-      uses: dtolnay/rust-toolchain@stable
-      with:
-        components: rustfmt, clippy
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
 
-    - name: Setup Rust cache
-      uses: Swatinem/rust-cache@v2
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
 
-    - name: Run tests
-      env:
-        DATABASE_URL: postgres://postgres:postgres@localhost/erp_test
-      run: cargo test --verbose
+      - name: Run tests
+        env:
+          DATABASE_URL: postgres://postgres:postgres@localhost/erp_test
+        run: cargo test --verbose
 
-    - name: Check formatting
-      run: cargo fmt -- --check
+      - name: Check formatting
+        run: cargo fmt -- --check
 
-    - name: Run clippy
-      run: cargo clippy -- -D warnings
+      - name: Run clippy
+        run: cargo clippy -- -D warnings
 
-    - name: Generate documentation
-      run: cargo doc --no-deps
+      - name: Generate documentation
+        run: cargo doc --no-deps
 
   security:
     name: Security Audit
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@stable
-    - name: Install cargo-audit
-      run: cargo install cargo-audit
-    - name: Run security audit
-      run: cargo audit
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install cargo-audit
+        run: cargo install cargo-audit
+      - name: Run security audit
+        run: cargo audit
 
   coverage:
     name: Code Coverage
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@stable
-    - name: Install tarpaulin
-      run: cargo install cargo-tarpaulin
-    - name: Generate coverage
-      run: cargo tarpaulin --out Xml
-    - name: Upload to codecov
-      uses: codecov/codecov-action@v3
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Install tarpaulin
+        run: cargo install cargo-tarpaulin
+      - name: Generate coverage
+        run: cargo tarpaulin --out Xml
+      - name: Upload to codecov
+        uses: codecov/codecov-action@v3
 ```
 
 ### 배포 자동화
@@ -788,7 +793,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   build:
@@ -813,23 +818,23 @@ jobs:
     runs-on: ${{ matrix.os }}
 
     steps:
-    - uses: actions/checkout@v4
-    - uses: dtolnay/rust-toolchain@stable
-      with:
-        targets: ${{ matrix.target }}
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
-    - name: Build release
-      run: cargo build --release --target ${{ matrix.target }}
+      - name: Build release
+        run: cargo build --release --target ${{ matrix.target }}
 
-    - name: Upload release asset
-      uses: actions/upload-release-asset@v1
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      with:
-        upload_url: ${{ steps.create_release.outputs.upload_url }}
-        asset_path: ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
-        asset_name: ${{ matrix.asset_name }}
-        asset_content_type: application/octet-stream
+      - name: Upload release asset
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: ./target/${{ matrix.target }}/release/${{ matrix.artifact_name }}
+          asset_name: ${{ matrix.asset_name }}
+          asset_content_type: application/octet-stream
 ```
 
 ## 패키징 및 배포
@@ -857,7 +862,7 @@ CMD ["erp", "server", "start"]
 
 ```yaml
 # docker-compose.yml
-version: '3.8'
+version: "3.8"
 
 services:
   erp:
@@ -947,6 +952,7 @@ echo "Run 'erp --help' to get started."
 ### 코드 스타일 가이드
 
 1. **Rust 표준 스타일 준수**
+
    ```bash
    # 포맷팅 적용
    cargo fmt
@@ -956,6 +962,7 @@ echo "Run 'erp --help' to get started."
    ```
 
 2. **Clippy 경고 해결**
+
    ```bash
    # 모든 경고를 에러로 처리
    cargo clippy -- -D warnings
@@ -965,7 +972,7 @@ echo "Run 'erp --help' to get started."
    ```
 
 3. **문서화 표준**
-   ```rust
+   ````rust
    /// 제품을 재고에 추가합니다.
    ///
    /// # Arguments
@@ -997,11 +1004,12 @@ echo "Run 'erp --help' to get started."
    pub async fn add_product(&self, product: NewProduct) -> ErpResult<Uuid> {
        // 구현...
    }
-   ```
+   ````
 
 ### 테스트 작성 가이드
 
 1. **단위 테스트**
+
    ```rust
    #[cfg(test)]
    mod tests {
@@ -1031,6 +1039,7 @@ echo "Run 'erp --help' to get started."
    ```
 
 2. **통합 테스트**
+
    ```rust
    // tests/integration/inventory_tests.rs
    use erp_cli::test_utils::TestContext;
@@ -1083,9 +1092,11 @@ test(customers): add integration tests for customer service
 
 ```markdown
 ## 변경사항 요약
+
 <!-- 이 PR에서 무엇을 변경했는지 간략하게 설명하세요 -->
 
 ## 변경 타입
+
 - [ ] 🚀 새로운 기능 (feat)
 - [ ] 🐛 버그 수정 (fix)
 - [ ] 📚 문서 업데이트 (docs)
@@ -1095,11 +1106,13 @@ test(customers): add integration tests for customer service
 - [ ] 🔧 기타 변경사항 (chore)
 
 ## 테스트
+
 - [ ] 기존 테스트가 통과합니다
 - [ ] 새로운 테스트를 추가했습니다
 - [ ] 수동 테스트를 완료했습니다
 
 ## 체크리스트
+
 - [ ] 코드가 프로젝트의 스타일 가이드를 따릅니다
 - [ ] 자체 리뷰를 완료했습니다
 - [ ] 코드에 명확한 주석을 추가했습니다
@@ -1107,33 +1120,10 @@ test(customers): add integration tests for customer service
 - [ ] 변경사항이 기존 기능을 깨뜨리지 않습니다
 
 ## 관련 이슈
+
 <!-- 관련된 이슈 번호를 적어주세요 (예: Closes #123) -->
 
 ## 스크린샷 (필요시)
+
 <!-- 화면 변경사항이 있는 경우 스크린샷을 첨부하세요 -->
 ```
-
-## 리소스
-
-### 공식 문서
-- [Rust 공식 문서](https://doc.rust-lang.org/)
-- [Rust Book](https://doc.rust-lang.org/book/)
-- [Rust by Example](https://doc.rust-lang.org/rust-by-example/)
-
-### 주요 크레이트 문서
-- [Tokio 가이드](https://tokio.rs/tokio/tutorial)
-- [SQLx 문서](https://docs.rs/sqlx/)
-- [Clap 가이드](https://docs.rs/clap/)
-- [Tracing 가이드](https://docs.rs/tracing/)
-- [Serde 가이드](https://serde.rs/)
-
-### 개발 도구
-- [Rust Analyzer](https://rust-analyzer.github.io/) - IDE 지원
-- [cargo-edit](https://github.com/killercup/cargo-edit) - 의존성 관리
-- [cargo-watch](https://github.com/watchexec/cargo-watch) - 파일 변경 감지
-- [cargo-expand](https://github.com/dtolnay/cargo-expand) - 매크로 확장 보기
-
-### 성능 및 디버깅
-- [flamegraph](https://github.com/flamegraph-rs/flamegraph) - 성능 프로파일링
-- [cargo-bloat](https://github.com/RazrFalcon/cargo-bloat) - 바이너리 크기 분석
-- [tokio-console](https://github.com/tokio-rs/console) - Tokio 런타임 모니터링

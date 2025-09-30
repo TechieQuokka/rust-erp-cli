@@ -27,10 +27,11 @@ impl CustomerService {
         self.validate_create_request(&request).await?;
 
         // Check if email already exists
-        if let Some(_) = self
+        if (self
             .repository
             .get_customer_by_email(&request.email)
-            .await?
+            .await?)
+            .is_some()
         {
             return Err(ErpError::validation_simple("Email already exists"));
         }
@@ -135,10 +136,8 @@ impl CustomerService {
 
         // Check for email conflicts if email is being updated
         if let Some(new_email) = &request.email {
-            if new_email != &customer.email {
-                if let Some(_) = self.repository.get_customer_by_email(new_email).await? {
-                    return Err(ErpError::validation_simple("Email already exists"));
-                }
+            if new_email != &customer.email && (self.repository.get_customer_by_email(new_email).await?).is_some() {
+                return Err(ErpError::validation_simple("Email already exists"));
             }
         }
 
@@ -454,10 +453,10 @@ impl CustomerService {
         if request.last_name.trim().is_empty() {
             // Check if first_name contains non-ASCII characters (likely Asian name)
             let has_non_ascii = request.first_name.chars().any(|c| {
-                (c >= '\u{AC00}' && c <= '\u{D7AF}') || // Korean Hangul
-                (c >= '\u{3040}' && c <= '\u{309F}') || // Japanese Hiragana
-                (c >= '\u{30A0}' && c <= '\u{30FF}') || // Japanese Katakana
-                (c >= '\u{4E00}' && c <= '\u{9FAF}') || // CJK Unified Ideographs
+                ('\u{AC00}'..='\u{D7AF}').contains(&c) || // Korean Hangul
+                ('\u{3040}'..='\u{309F}').contains(&c) || // Japanese Hiragana
+                ('\u{30A0}'..='\u{30FF}').contains(&c) || // Japanese Katakana
+                ('\u{4E00}'..='\u{9FAF}').contains(&c) || // CJK Unified Ideographs
                 (!c.is_ascii() && c.is_alphabetic()) // Other non-ASCII alphabetic characters
             });
 
@@ -482,7 +481,7 @@ impl CustomerService {
         if request.customer_type.requires_tax_id() && request.tax_id.is_none() {
             return Err(ErpError::validation(
                 "tax_id",
-                &format!("{} customers require a tax ID", request.customer_type),
+                format!("{} customers require a tax ID", request.customer_type),
             ));
         }
 
@@ -530,10 +529,10 @@ impl CustomerService {
                 // Check if first_name contains non-ASCII characters (likely Asian name)
                 if let Some(first_name) = &request.first_name {
                     let has_non_ascii = first_name.chars().any(|c| {
-                        (c >= '\u{AC00}' && c <= '\u{D7AF}') || // Korean Hangul
-                        (c >= '\u{3040}' && c <= '\u{309F}') || // Japanese Hiragana
-                        (c >= '\u{30A0}' && c <= '\u{30FF}') || // Japanese Katakana
-                        (c >= '\u{4E00}' && c <= '\u{9FAF}') || // CJK Unified Ideographs
+                        ('\u{AC00}'..='\u{D7AF}').contains(&c) || // Korean Hangul
+                        ('\u{3040}'..='\u{309F}').contains(&c) || // Japanese Hiragana
+                        ('\u{30A0}'..='\u{30FF}').contains(&c) || // Japanese Katakana
+                        ('\u{4E00}'..='\u{9FAF}').contains(&c) || // CJK Unified Ideographs
                         (!c.is_ascii() && c.is_alphabetic()) // Other non-ASCII alphabetic characters
                     });
                     if !has_non_ascii {

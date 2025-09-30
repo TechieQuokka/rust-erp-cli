@@ -231,9 +231,9 @@ impl PostgresMigrator {
         let mut current_statement = String::new();
         let mut in_string = false;
         let mut escape_next = false;
-        let mut chars = sql.chars().peekable();
+        let chars = sql.chars().peekable();
 
-        while let Some(ch) = chars.next() {
+        for ch in chars {
             if escape_next {
                 current_statement.push(ch);
                 escape_next = false;

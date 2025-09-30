@@ -292,7 +292,7 @@ impl DeploymentService {
             .repository
             .get_deployment(deployment_id)
             .await?
-            .ok_or_else(|| ErpError::not_found("deployment", &deployment_id.to_string()))?;
+            .ok_or_else(|| ErpError::not_found("deployment", deployment_id.to_string()))?;
 
         if deployment.status != DeploymentStatus::Completed {
             return Err(ErpError::validation(
@@ -314,7 +314,7 @@ impl DeploymentService {
         self.repository
             .get_deployment(deployment_id)
             .await?
-            .ok_or_else(|| ErpError::not_found("deployment", &deployment_id.to_string()))
+            .ok_or_else(|| ErpError::not_found("deployment", deployment_id.to_string()))
     }
 
     pub async fn list_deployments(
@@ -553,7 +553,7 @@ impl DeploymentService {
                 } else {
                     return Err(ErpError::validation(
                         "health_check",
-                        &format!("Health check failed: {}", health_check.name),
+                        format!("Health check failed: {}", health_check.name),
                     ));
                 }
             }
@@ -655,11 +655,11 @@ impl DeploymentService {
 
         let output = cmd
             .output()
-            .map_err(|e| ErpError::internal(&format!("Failed to execute cargo build: {}", e)))?;
+            .map_err(|e| ErpError::internal(format!("Failed to execute cargo build: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(&format!(
+            return Err(ErpError::internal(format!(
                 "Cargo build failed: {}",
                 error
             )));
@@ -681,11 +681,11 @@ impl DeploymentService {
 
         let output = cmd
             .output()
-            .map_err(|e| ErpError::internal(&format!("Failed to execute cargo test: {}", e)))?;
+            .map_err(|e| ErpError::internal(format!("Failed to execute cargo test: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(&format!("Tests failed: {}", error)));
+            return Err(ErpError::internal(format!("Tests failed: {}", error)));
         }
 
         let test_output = String::from_utf8_lossy(&output.stdout);
@@ -833,11 +833,11 @@ impl DeploymentService {
 
         let output = cmd
             .output()
-            .map_err(|e| ErpError::internal(&format!("Failed to execute script: {}", e)))?;
+            .map_err(|e| ErpError::internal(format!("Failed to execute script: {}", e)))?;
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(&format!("Script failed: {}", error)));
+            return Err(ErpError::internal(format!("Script failed: {}", error)));
         }
 
         Ok(())
@@ -869,6 +869,12 @@ impl DeploymentService {
 #[derive(Debug, Clone)]
 pub struct MockDeploymentRepository {
     deployments: std::sync::Arc<std::sync::Mutex<Vec<DeploymentRecord>>>,
+}
+
+impl Default for MockDeploymentRepository {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockDeploymentRepository {

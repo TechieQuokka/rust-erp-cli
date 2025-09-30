@@ -849,6 +849,12 @@ impl ReportsRepository for PostgresReportsRepository {
 // Mock 구현체
 pub struct MockReportsRepository;
 
+impl Default for MockReportsRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockReportsRepository {
     pub fn new() -> Self {
         Self

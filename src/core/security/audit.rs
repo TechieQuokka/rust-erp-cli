@@ -377,6 +377,12 @@ pub struct MockAuditRepository {
     events: std::sync::Arc<std::sync::Mutex<Vec<AuditEvent>>>,
 }
 
+impl Default for MockAuditRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockAuditRepository {
     pub fn new() -> Self {
         Self {

@@ -648,11 +648,8 @@ mod tests {
         let mut user = auth_service.register(register_request).await.unwrap();
         user.status = UserStatus::Active; // Activate the user
 
-        // Add user to mock repository
-        let any_repo: &dyn std::any::Any = auth_service.user_repository.as_ref();
-        if let Some(mock_repo) = any_repo.downcast_ref::<MockUserRepository>() {
-            mock_repo.add_user(user);
-        }
+        // Update user status in repository
+        auth_service.user_repository.update(&user).await.unwrap();
 
         // Test login
         let login_request = LoginRequest {
@@ -674,7 +671,7 @@ mod tests {
 
         let login_request = LoginRequest {
             username: "nonexistent".to_string(),
-            password: "wrongpassword".to_string(),
+            password: "ValidPassword123!".to_string(), // Use valid password format to pass validation
             remember_me: Some(false),
         };
 

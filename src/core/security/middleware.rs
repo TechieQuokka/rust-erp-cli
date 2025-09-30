@@ -236,7 +236,7 @@ impl SecurityMiddleware {
                         context.username().unwrap_or("anonymous"),
                         permission
                     );
-                    return Err(ErpError::forbidden(&format!(
+                    return Err(ErpError::forbidden(format!(
                         "Missing permission: {}",
                         permission
                     )));
@@ -266,7 +266,7 @@ impl SecurityMiddleware {
         permission: &str,
     ) -> ErpResult<()> {
         if !context.has_permission(permission) {
-            return Err(ErpError::forbidden(&format!(
+            return Err(ErpError::forbidden(format!(
                 "Missing permission: {}",
                 permission
             )));

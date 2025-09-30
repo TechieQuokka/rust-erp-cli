@@ -197,7 +197,7 @@ impl InventoryService for InventoryServiceImpl {
             .sku_exists(&create_request.sku, None)
             .await?
         {
-            return Err(ErpError::conflict(&format!(
+            return Err(ErpError::conflict(format!(
                 "SKU '{}' already exists",
                 create_request.sku
             )));
@@ -561,6 +561,7 @@ mod tests {
 
     fn create_test_service() -> InventoryServiceImpl {
         let repository = Arc::new(MockInventoryRepository::new());
+        repository.clear(); // Clear any existing data from previous tests
         InventoryServiceImpl::new(repository)
     }
 

@@ -410,7 +410,7 @@ mod tests {
         assert!(validate_phone("").is_ok()); // Empty is allowed
 
         assert!(validate_phone("abc123").is_err());
-        assert!(validate_phone("+12345678901234567890").is_err());
+        assert!(validate_phone("+123456789012345678901").is_err()); // 21 digits exceeds max of 20
     }
 
     #[test]

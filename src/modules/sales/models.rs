@@ -37,7 +37,9 @@ pub struct SalesOrderItem {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, PartialEq)]
 #[sqlx(type_name = "order_status", rename_all = "lowercase")]
+#[derive(Default)]
 pub enum OrderStatus {
+    #[default]
     Draft,
     Pending,
     Confirmed,
@@ -62,7 +64,9 @@ pub enum PaymentMethod {
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "payment_status", rename_all = "lowercase")]
+#[derive(Default)]
 pub enum PaymentStatus {
+    #[default]
     Pending,
     Paid,
     PartiallyPaid,
@@ -172,17 +176,7 @@ pub struct TopProduct {
     pub revenue: Decimal,
 }
 
-impl Default for OrderStatus {
-    fn default() -> Self {
-        OrderStatus::Draft
-    }
-}
 
-impl Default for PaymentStatus {
-    fn default() -> Self {
-        PaymentStatus::Pending
-    }
-}
 
 impl std::fmt::Display for OrderStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

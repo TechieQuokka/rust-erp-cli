@@ -672,6 +672,12 @@ pub struct MockPerformanceRepository {
     system_performance: Arc<Mutex<Vec<SystemPerformance>>>,
 }
 
+impl Default for MockPerformanceRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockPerformanceRepository {
     pub fn new() -> Self {
         Self {
@@ -711,7 +717,7 @@ impl PerformanceRepository for MockPerformanceRepository {
         let metrics = self.metrics.lock().unwrap();
         let mut filtered: Vec<PerformanceMetrics> = metrics
             .iter()
-            .filter(|m| m.timestamp > since && endpoint.map_or(true, |e| m.endpoint == e))
+            .filter(|m| m.timestamp > since && endpoint.is_none_or(|e| m.endpoint == e))
             .cloned()
             .collect();
 
@@ -730,7 +736,7 @@ impl PerformanceRepository for MockPerformanceRepository {
         let metrics = self.aggregated.lock().unwrap();
         Ok(metrics
             .iter()
-            .filter(|m| m.timestamp > since && endpoint.map_or(true, |e| m.endpoint == e))
+            .filter(|m| m.timestamp > since && endpoint.is_none_or(|e| m.endpoint == e))
             .cloned()
             .collect())
     }

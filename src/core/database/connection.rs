@@ -55,7 +55,9 @@ impl DatabaseConnection {
                 .map_err(|e| ErpError::internal(format!("Failed to create database: {}", e)))?;
         }
 
-        let pool = Pool::<Postgres>::connect(&config.url)
+        let pool = sqlx::postgres::PgPoolOptions::new()
+            .max_connections(config.max_connections)
+            .connect(&config.url)
             .await
             .map_err(|e| ErpError::internal(format!("Failed to connect to database: {}", e)))?;
 
@@ -288,8 +290,9 @@ mod tests {
     use crate::core::config::DatabaseConfig;
 
     fn create_test_config() -> DatabaseConfig {
+        // Use PostgreSQL test database for consistency with production
         DatabaseConfig {
-            url: "sqlite::memory:".to_string(),
+            url: "postgresql://postgres:2147483647@localhost:5432/erp_test_db".to_string(),
             max_connections: 5,
             migrate_on_start: false,
             query_timeout_seconds: 30,
@@ -333,11 +336,8 @@ mod tests {
         let _ = DatabaseConnection::new(config).await.unwrap();
 
         let result = TransactionManager::new().await;
-        match result {
-            Ok(tx_manager) => {
-                assert!(!tx_manager.tx_id().is_nil());
-            }
-            Err(_) => {}
+        if let Ok(tx_manager) = result {
+            assert!(!tx_manager.tx_id().is_nil());
         }
     }
 

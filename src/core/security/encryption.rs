@@ -144,11 +144,11 @@ impl EncryptionService {
         // Decode from base64
         let ciphertext = general_purpose::STANDARD
             .decode(&encrypted_data.ciphertext)
-            .map_err(|e| ErpError::validation("ciphertext", &format!("Invalid base64: {}", e)))?;
+            .map_err(|e| ErpError::validation("ciphertext", format!("Invalid base64: {}", e)))?;
 
         let nonce_bytes = general_purpose::STANDARD
             .decode(&encrypted_data.nonce)
-            .map_err(|e| ErpError::validation("nonce", &format!("Invalid base64: {}", e)))?;
+            .map_err(|e| ErpError::validation("nonce", format!("Invalid base64: {}", e)))?;
 
         if nonce_bytes.len() != self.config.nonce_size {
             return Err(ErpError::validation("nonce", "Invalid nonce size"));
@@ -217,10 +217,10 @@ impl EncryptionService {
 
         let salt_bytes = general_purpose::STANDARD
             .decode(salt_b64)
-            .map_err(|e| ErpError::validation("salt", &format!("Invalid base64: {}", e)))?;
+            .map_err(|e| ErpError::validation("salt", format!("Invalid base64: {}", e)))?;
 
         let salt_str = std::str::from_utf8(&salt_bytes)
-            .map_err(|e| ErpError::validation("salt", &format!("Invalid UTF-8: {}", e)))?;
+            .map_err(|e| ErpError::validation("salt", format!("Invalid UTF-8: {}", e)))?;
 
         // Derive key from password
         let key = self.derive_key_from_password(password, salt_str)?;
@@ -232,11 +232,11 @@ impl EncryptionService {
         // Decode from base64
         let ciphertext = general_purpose::STANDARD
             .decode(&encrypted_data.ciphertext)
-            .map_err(|e| ErpError::validation("ciphertext", &format!("Invalid base64: {}", e)))?;
+            .map_err(|e| ErpError::validation("ciphertext", format!("Invalid base64: {}", e)))?;
 
         let nonce_bytes = general_purpose::STANDARD
             .decode(&encrypted_data.nonce)
-            .map_err(|e| ErpError::validation("nonce", &format!("Invalid base64: {}", e)))?;
+            .map_err(|e| ErpError::validation("nonce", format!("Invalid base64: {}", e)))?;
 
         if nonce_bytes.len() != self.config.nonce_size {
             return Err(ErpError::validation("nonce", "Invalid nonce size"));
@@ -269,7 +269,7 @@ impl EncryptionService {
 
     pub fn verify_password(&self, password: &str, hash: &str) -> ErpResult<bool> {
         let parsed_hash = PasswordHash::new(hash)
-            .map_err(|e| ErpError::validation("password_hash", &format!("Invalid hash: {}", e)))?;
+            .map_err(|e| ErpError::validation("password_hash", format!("Invalid hash: {}", e)))?;
 
         let argon2 = Argon2::default();
 
@@ -281,7 +281,7 @@ impl EncryptionService {
 
     fn derive_key_from_password(&self, password: &str, salt: &str) -> ErpResult<Vec<u8>> {
         let salt_string = argon2::password_hash::SaltString::from_b64(salt)
-            .map_err(|e| ErpError::validation("salt", &format!("Invalid salt: {}", e)))?;
+            .map_err(|e| ErpError::validation("salt", format!("Invalid salt: {}", e)))?;
 
         let argon2 = Argon2::default();
 

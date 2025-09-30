@@ -297,6 +297,7 @@ impl MonitoringService {
         })
     }
 
+    #[allow(clippy::await_holding_lock)]
     async fn run_health_checks(&self) -> ErpResult<()> {
         let checks = {
             let health_checks = self.health_checks.lock().unwrap();
@@ -426,6 +427,7 @@ impl MonitoringService {
         Ok(())
     }
 
+    #[allow(clippy::await_holding_lock)]
     async fn create_alert(
         &self,
         severity: AlertSeverity,
@@ -470,6 +472,7 @@ impl MonitoringService {
         Ok(())
     }
 
+    #[allow(clippy::await_holding_lock)]
     pub async fn resolve_alert(&self, alert_id: Uuid) -> ErpResult<()> {
         let mut active_alerts = self.active_alerts.lock().unwrap();
 
@@ -631,6 +634,12 @@ pub struct DatabaseHealthCheck {
     name: String,
 }
 
+impl Default for DatabaseHealthCheck {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl DatabaseHealthCheck {
     pub fn new() -> Self {
         Self {
@@ -681,6 +690,12 @@ pub struct MockMetricsRepository {
     security_metrics: Arc<Mutex<Vec<SecurityMetrics>>>,
     health_statuses: Arc<Mutex<Vec<HealthStatus>>>,
     alerts: Arc<Mutex<Vec<Alert>>>,
+}
+
+impl Default for MockMetricsRepository {
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 impl MockMetricsRepository {

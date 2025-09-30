@@ -217,8 +217,17 @@ impl SalesHandler {
         status: &str,
         notes: &Option<String>,
     ) -> ErpResult<()> {
-        let order_id =
-            Uuid::from_str(id).map_err(|_| ErpError::validation("order_id", "invalid format"))?;
+        // Try to parse as UUID first, if that fails, assume it's an order number
+        let order_id = if let Ok(uuid) = Uuid::from_str(id) {
+            uuid
+        } else {
+            // It's likely an order number (e.g., "ORD-000038"), look up the UUID
+            let order_summary = sales_service
+                .get_order_by_number(id)
+                .await?
+                .ok_or_else(|| ErpError::not_found("Order", id))?;
+            order_summary.order.id
+        };
 
         let new_status = Self::parse_order_status(status)?;
 
@@ -250,8 +259,17 @@ impl SalesHandler {
         output: &Option<String>,
         format: &str,
     ) -> ErpResult<()> {
-        let order_uuid = Uuid::from_str(order_id)
-            .map_err(|_| ErpError::validation("order_id", "invalid format"))?;
+        // Try to parse as UUID first, if that fails, assume it's an order number
+        let order_uuid = if let Ok(uuid) = Uuid::from_str(order_id) {
+            uuid
+        } else {
+            // It's likely an order number (e.g., "ORD-000038"), look up the UUID
+            let order_summary = sales_service
+                .get_order_by_number(order_id)
+                .await?
+                .ok_or_else(|| ErpError::not_found("Order", order_id))?;
+            order_summary.order.id
+        };
 
         match sales_service.generate_invoice(order_uuid).await {
             Ok(invoice) => {

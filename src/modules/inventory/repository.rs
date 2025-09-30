@@ -82,7 +82,7 @@ impl InventoryRepository for PostgresInventoryRepository {
     async fn create_product(&self, request: CreateProductRequest) -> ErpResult<Product> {
         // Check if SKU already exists
         if self.sku_exists(&request.sku, None).await? {
-            return Err(ErpError::conflict(&format!(
+            return Err(ErpError::conflict(format!(
                 "SKU '{}' already exists",
                 request.sku
             )));
@@ -732,12 +732,26 @@ pub struct MockInventoryRepository {
     stock_movements: std::sync::Arc<std::sync::Mutex<Vec<StockMovement>>>,
 }
 
+impl Default for MockInventoryRepository {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl MockInventoryRepository {
     pub fn new() -> Self {
         Self {
             products: MOCK_PRODUCTS.clone(),
             stock_movements: MOCK_STOCK_MOVEMENTS.clone(),
         }
+    }
+
+    #[cfg(test)]
+    pub fn clear(&self) {
+        let mut products = self.products.lock().unwrap();
+        products.clear();
+        let mut movements = self.stock_movements.lock().unwrap();
+        movements.clear();
     }
 }
 

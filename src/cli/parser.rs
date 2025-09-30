@@ -56,13 +56,13 @@ pub enum InventoryCommands {
         /// 제품명
         name: String,
         /// 수량
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         quantity: i32,
         /// 가격
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         price: f64,
         /// 원가 (선택사항, 기본값: 가격의 70%)
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         cost: Option<f64>,
         /// 카테고리
         #[clap(long)]
@@ -71,7 +71,7 @@ pub enum InventoryCommands {
         #[clap(long)]
         sku: Option<String>,
         /// 최소 재고량 (선택사항)
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         min_stock: Option<i32>,
         /// 설명 (선택사항)
         #[clap(long)]
@@ -112,13 +112,13 @@ pub enum InventoryCommands {
         #[clap(long)]
         name: Option<String>,
         /// 새로운 수량
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         quantity: Option<i32>,
         /// 새로운 가격
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         price: Option<f64>,
         /// 새로운 원가
-        #[clap(long)]
+        #[clap(long, allow_negative_numbers = true)]
         cost: Option<f64>,
         /// 새로운 카테고리
         #[clap(long)]

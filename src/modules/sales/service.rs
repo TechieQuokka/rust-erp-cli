@@ -115,7 +115,10 @@ impl SalesService {
 
         // Get tax rate from config service or use default
         let tax_rate = if let Some(config_service) = &self.config_service {
-            config_service.get_tax_rate().await.unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
+            config_service
+                .get_tax_rate()
+                .await
+                .unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
         } else {
             Decimal::from_f64_retain(10.0).unwrap() // Default 10%
         };
@@ -169,7 +172,10 @@ impl SalesService {
 
         // Get tax rate from config service or use default
         let tax_rate = if let Some(config_service) = &self.config_service {
-            config_service.get_tax_rate().await.unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
+            config_service
+                .get_tax_rate()
+                .await
+                .unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
         } else {
             Decimal::from_f64_retain(10.0).unwrap() // Default 10%
         };
@@ -200,13 +206,18 @@ impl SalesService {
 
         // Get tax rate from config service or use default
         let tax_rate = if let Some(config_service) = &self.config_service {
-            config_service.get_tax_rate().await.unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
+            config_service
+                .get_tax_rate()
+                .await
+                .unwrap_or_else(|_| Decimal::from_f64_retain(10.0).unwrap())
         } else {
             Decimal::from_f64_retain(10.0).unwrap() // Default 10%
         };
 
-        let (subtotal, total_discount, tax_amount) =
-            self.repository.calculate_order_totals(order.id, tax_rate).await?;
+        let (subtotal, total_discount, tax_amount) = self
+            .repository
+            .calculate_order_totals(order.id, tax_rate)
+            .await?;
 
         Ok(Some(OrderSummary {
             order,
