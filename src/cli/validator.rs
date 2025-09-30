@@ -8,7 +8,14 @@ pub struct CliValidator;
 
 impl CliValidator {
     pub fn validate_price(price: f64) -> ErpResult<Decimal> {
-        if price <= 0.0 {
+        if price < 0.0 {
+            return Err(ErpError::validation(
+                "price",
+                "가격은 음수일 수 없습니다. 0보다 큰 값을 입력하세요",
+            ));
+        }
+
+        if price == 0.0 {
             return Err(ErpError::validation("price", "가격은 0보다 커야 합니다"));
         }
 
@@ -24,10 +31,10 @@ impl CliValidator {
     }
 
     pub fn validate_quantity(quantity: i32) -> ErpResult<i32> {
-        if quantity < 1 {
+        if quantity <= 0 {
             return Err(ErpError::validation(
                 "quantity",
-                "수량은 1 이상이어야 합니다",
+                "수량은 최소 1 이상이어야 합니다",
             ));
         }
 
@@ -265,7 +272,14 @@ impl CliValidator {
     }
 
     pub fn validate_report_period(period: &str) -> ErpResult<String> {
-        let valid_periods = ["daily", "weekly", "monthly", "quarterly", "yearly", "custom"];
+        let valid_periods = [
+            "daily",
+            "weekly",
+            "monthly",
+            "quarterly",
+            "yearly",
+            "custom",
+        ];
         let normalized = period.trim().to_lowercase();
 
         if !valid_periods.contains(&normalized.as_str()) {

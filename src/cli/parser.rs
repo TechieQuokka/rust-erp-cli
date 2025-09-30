@@ -56,13 +56,13 @@ pub enum InventoryCommands {
         /// 제품명
         name: String,
         /// 수량
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         quantity: i32,
         /// 가격
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         price: f64,
         /// 원가 (선택사항, 기본값: 가격의 70%)
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         cost: Option<f64>,
         /// 카테고리
         #[clap(long)]
@@ -71,7 +71,7 @@ pub enum InventoryCommands {
         #[clap(long)]
         sku: Option<String>,
         /// 최소 재고량 (선택사항)
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         min_stock: Option<i32>,
         /// 설명 (선택사항)
         #[clap(long)]
@@ -112,13 +112,13 @@ pub enum InventoryCommands {
         #[clap(long)]
         name: Option<String>,
         /// 새로운 수량
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         quantity: Option<i32>,
         /// 새로운 가격
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         price: Option<f64>,
         /// 새로운 원가
-        #[clap(long, allow_negative_numbers = true)]
+        #[clap(long)]
         cost: Option<f64>,
         /// 새로운 카테고리
         #[clap(long)]
@@ -141,7 +141,7 @@ pub enum InventoryCommands {
         #[clap(long)]
         threshold: Option<i32>,
         /// 출력 형식 (table, json, csv)
-        #[clap(long, default_value = "table")]
+        #[clap(long, default_value = "table", value_parser = ["table", "json", "csv"])]
         format: String,
     },
 }

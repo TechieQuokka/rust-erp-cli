@@ -26,7 +26,7 @@ pub enum ErpError {
         resource: String,
     },
 
-    #[error("Validation error: {field} is {reason}")]
+    #[error("검증 에러: {field} - {reason}")]
     Validation { field: String, reason: String },
 
     #[error("Resource not found: {resource_type} with id {id}")]
@@ -178,10 +178,10 @@ mod tests {
         assert!(auth_err.to_string().contains("Invalid credentials"));
 
         let validation_err = ErpError::validation("email", "invalid format");
-        assert!(validation_err.to_string().contains("Validation error"));
+        assert!(validation_err.to_string().contains("검증 에러"));
         assert!(validation_err
             .to_string()
-            .contains("email is invalid format"));
+            .contains("email - invalid format"));
 
         let not_found_err = ErpError::not_found("User", "123");
         assert!(not_found_err.to_string().contains("Resource not found"));
@@ -205,7 +205,7 @@ mod tests {
         let validation_simple = ErpError::validation_simple("invalid input");
         assert!(validation_simple
             .to_string()
-            .contains("input is invalid input"));
+            .contains("input - invalid input"));
 
         let not_found_simple = ErpError::not_found_simple("item not found");
         assert!(not_found_simple
