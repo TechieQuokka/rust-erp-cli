@@ -619,7 +619,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let rows = sqlx::query!(
             "SELECT id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes, created_at, updated_at
              FROM customers
-             WHERE name ILIKE $1 OR email ILIKE $1 OR company ILIKE $1
+             WHERE name ILIKE $1 OR email ILIKE $1 OR company ILIKE $1 OR phone ILIKE $1
              ORDER BY created_at DESC
              LIMIT $2",
             search_pattern,
@@ -717,10 +717,13 @@ impl CustomerRepository for PostgresCustomerRepository {
             .map_err(|e| ErpError::database(format!("Failed to start transaction: {}", e)))?;
 
         // First, delete all order items
-        sqlx::query!("DELETE FROM sales_order_items WHERE order_id = $1", order_id)
-            .execute(&mut *tx)
-            .await
-            .map_err(|e| ErpError::database(format!("Failed to delete order items: {}", e)))?;
+        sqlx::query!(
+            "DELETE FROM sales_order_items WHERE order_id = $1",
+            order_id
+        )
+        .execute(&mut *tx)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to delete order items: {}", e)))?;
 
         // Then delete the order
         sqlx::query!("DELETE FROM sales_orders WHERE id = $1", order_id)
