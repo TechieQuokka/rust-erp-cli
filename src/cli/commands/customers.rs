@@ -79,8 +79,8 @@ impl CustomerHandler {
                 Self::handle_update(&service, id, name, email, phone, address, company, notes).await
             }
 
-            CustomerCommands::Delete { id, force } => {
-                Self::handle_delete(&service, id, *force).await
+            CustomerCommands::Delete { id, force, cascade } => {
+                Self::handle_delete(&service, id, *force, *cascade).await
             }
 
             CustomerCommands::Search { query, field } => {
@@ -566,7 +566,7 @@ impl CustomerHandler {
         Ok(())
     }
 
-    async fn handle_delete(service: &CustomerService, id: &str, force: bool) -> ErpResult<()> {
+    async fn handle_delete(service: &CustomerService, id: &str, force: bool, cascade: bool) -> ErpResult<()> {
         // Parse customer ID or code
         let customer_id = if let Ok(uuid) = Uuid::parse_str(id) {
             uuid
@@ -595,6 +595,10 @@ impl CustomerHandler {
                 return Ok(());
             }
 
+            if cascade {
+                println!("\n⚠️  Warning: Using --cascade will delete all orders associated with this customer!");
+            }
+
             // Interactive confirmation prompt
             print!("\nAre you sure you want to delete this customer? (y/N): ");
             std::io::Write::flush(&mut std::io::stdout())
@@ -613,14 +617,41 @@ impl CustomerHandler {
         }
 
         // Attempt to delete
-        service.delete_customer(customer_id).await?;
-
-        println!("✅ Customer deleted successfully!");
-        println!(
-            "Deleted: {} ({})",
-            customer.display_name(),
-            customer.customer_code
-        );
+        if cascade {
+            let result = service.delete_customer_cascade(customer_id).await?;
+            println!("✅ Customer deleted successfully with cascade!");
+            println!(
+                "Deleted: {} ({})",
+                result.customer_name,
+                result.customer_code
+            );
+            if result.orders_deleted > 0 {
+                println!("  └─ {} order(s) also deleted", result.orders_deleted);
+            }
+        } else {
+            match service.delete_customer(customer_id).await {
+                Ok(_) => {
+                    println!("✅ Customer deleted successfully!");
+                    println!(
+                        "Deleted: {} ({})",
+                        customer.display_name(),
+                        customer.customer_code
+                    );
+                }
+                Err(e) => {
+                    // Check if error is due to foreign key constraint
+                    let error_msg = format!("{}", e);
+                    if error_msg.contains("foreign key constraint")
+                        || error_msg.contains("sales_orders_customer_id_fkey") {
+                        println!("\n❌ Cannot delete customer: This customer has existing orders.");
+                        println!("💡 Tip: Use --cascade to delete the customer and all their orders:");
+                        println!("   cargo run -- customers delete {} --cascade", id);
+                        return Ok(());
+                    }
+                    return Err(e);
+                }
+            }
+        }
 
         Ok(())
     }

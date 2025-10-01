@@ -11,11 +11,13 @@
 API 레퍼런스 문서(`docs/api-reference.md`)에 명시된 `customers search` 명령어의 모든 경우의 수를 테스트하여 정상 작동 여부를 검증하였습니다.
 
 ### 명령어 형식
+
 ```bash
 erp customers search <검색어> [옵션]
 ```
 
 ### 지원 옵션
+
 - `--field <필드>`: 검색 필드 지정 (name, email, phone)
 - `--format <형식>`: 출력 형식 지정 (table, json, csv 등)
 
@@ -26,13 +28,16 @@ erp customers search <검색어> [옵션]
 ### 2.1 기본 검색 (모든 필드 대상)
 
 #### 테스트 케이스 1: 한글 성씨로 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "김"
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 2명
+
 - `CUST-0961d882`: SeoulK (김 철수)
 - `CUST-4e4d4420`: 김 지우
 
@@ -41,13 +46,16 @@ cargo run -- customers search "김"
 ---
 
 #### 테스트 케이스 2: 영문 이름 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "Seoul"
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 2명
+
 - `CUST-103cffe5`: SeoulL (강 나영)
 - `CUST-0961d882`: SeoulK (김 철수)
 
@@ -56,13 +64,16 @@ cargo run -- customers search "Seoul"
 ---
 
 #### 테스트 케이스 3: 회사명 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "Company"
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 7개 기업 고객
+
 - 푸드테크 Company
 - 그린에너지 Company
 - 테크스타트업 Company
@@ -76,7 +87,9 @@ cargo run -- customers search "Company"
 ---
 
 #### 테스트 케이스 4: 존재하지 않는 검색어
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "nonexistent"
 ```
@@ -89,13 +102,16 @@ cargo run -- customers search "nonexistent"
 ---
 
 #### 테스트 케이스 5: 전체 이름 검색 (공백 포함)
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "김 철수"
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 1명
+
 - `CUST-0961d882`: SeoulK (김 철수)
 
 **비고:** 공백이 포함된 전체 이름 검색이 정상 작동합니다.
@@ -103,13 +119,16 @@ cargo run -- customers search "김 철수"
 ---
 
 #### 테스트 케이스 6: 부분 회사명 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "전자"
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 2개 기업
+
 - LG전자 Company
 - 삼성전자 Company
 
@@ -120,7 +139,9 @@ cargo run -- customers search "전자"
 ### 2.2 필드별 검색 (--field 옵션 사용)
 
 #### 테스트 케이스 7: 이름 필드 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "김" --field name
 ```
@@ -133,13 +154,16 @@ cargo run -- customers search "김" --field name
 ---
 
 #### 테스트 케이스 8: 이메일 필드 검색 (부분 일치)
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "test" --field email
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 12명
+
 - 이메일에 "test"가 포함된 모든 고객 검색됨
   - test01@example.com ~ test11@example.com
   - testemail@test.com
@@ -150,13 +174,16 @@ cargo run -- customers search "test" --field email
 ---
 
 #### 테스트 케이스 9: 이메일 필드 검색 (특정 도메인)
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "samsung" --field email
 ```
 
 **결과:** ✅ **성공**
 **발견된 고객 수:** 1명
+
 - `CUST-0c502c52`: 삼성전자 Company (contact@samsung.com)
 
 **비고:** 특정 도메인으로 이메일 검색이 가능합니다.
@@ -164,7 +191,9 @@ cargo run -- customers search "samsung" --field email
 ---
 
 #### 테스트 케이스 10: 이메일 특수문자 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "@" --field email
 ```
@@ -177,7 +206,9 @@ cargo run -- customers search "@" --field email
 ---
 
 #### 테스트 케이스 11: 이메일 도메인 확장자 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "com" --field email
 ```
@@ -190,7 +221,9 @@ cargo run -- customers search "com" --field email
 ---
 
 #### 테스트 케이스 12: 전화번호 필드 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "010" --field phone
 ```
@@ -205,7 +238,9 @@ cargo run -- customers search "010" --field phone
 ---
 
 #### 테스트 케이스 13: 고객 코드로 이름 필드 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search "CUST-" --field name
 ```
@@ -220,7 +255,9 @@ cargo run -- customers search "CUST-" --field name
 ### 2.3 엣지 케이스
 
 #### 테스트 케이스 14: 빈 문자열 검색
+
 **명령어:**
+
 ```bash
 cargo run -- customers search ""
 ```
@@ -235,26 +272,28 @@ cargo run -- customers search ""
 ## 3. 검증 결과 요약
 
 ### 성공한 테스트
-| 번호 | 테스트 케이스 | 결과 |
-|------|--------------|------|
-| 1 | 한글 성씨 검색 | ✅ 성공 |
-| 2 | 영문 이름 검색 | ✅ 성공 |
-| 3 | 회사명 검색 | ✅ 성공 |
-| 4 | 존재하지 않는 검색어 | ✅ 성공 |
-| 5 | 전체 이름 검색 (공백 포함) | ✅ 성공 |
-| 6 | 부분 회사명 검색 | ✅ 성공 |
-| 7 | 이름 필드 검색 | ✅ 성공 |
-| 8 | 이메일 필드 검색 (부분 일치) | ✅ 성공 |
-| 9 | 이메일 필드 검색 (도메인) | ✅ 성공 |
-| 10 | 이메일 특수문자 검색 | ✅ 성공 |
-| 11 | 이메일 도메인 확장자 검색 | ✅ 성공 |
-| 13 | 고객 코드로 이름 검색 (결과 없음) | ✅ 성공 |
-| 14 | 빈 문자열 검색 (유효성 검증) | ✅ 성공 |
+
+| 번호 | 테스트 케이스                     | 결과    |
+| ---- | --------------------------------- | ------- |
+| 1    | 한글 성씨 검색                    | ✅ 성공 |
+| 2    | 영문 이름 검색                    | ✅ 성공 |
+| 3    | 회사명 검색                       | ✅ 성공 |
+| 4    | 존재하지 않는 검색어              | ✅ 성공 |
+| 5    | 전체 이름 검색 (공백 포함)        | ✅ 성공 |
+| 6    | 부분 회사명 검색                  | ✅ 성공 |
+| 7    | 이름 필드 검색                    | ✅ 성공 |
+| 8    | 이메일 필드 검색 (부분 일치)      | ✅ 성공 |
+| 9    | 이메일 필드 검색 (도메인)         | ✅ 성공 |
+| 10   | 이메일 특수문자 검색              | ✅ 성공 |
+| 11   | 이메일 도메인 확장자 검색         | ✅ 성공 |
+| 13   | 고객 코드로 이름 검색 (결과 없음) | ✅ 성공 |
+| 14   | 빈 문자열 검색 (유효성 검증)      | ✅ 성공 |
 
 ### 실패한 테스트
-| 번호 | 테스트 케이스 | 결과 | 문제점 |
-|------|--------------|------|--------|
-| 12 | 전화번호 필드 검색 | ❌ 실패 | 전화번호 검색 기능이 작동하지 않음 |
+
+| 번호 | 테스트 케이스      | 결과    | 문제점                             |
+| ---- | ------------------ | ------- | ---------------------------------- |
+| 12   | 전화번호 필드 검색 | ❌ 실패 | 전화번호 검색 기능이 작동하지 않음 |
 
 ---
 
@@ -263,15 +302,18 @@ cargo run -- customers search ""
 ### 4.1 전화번호 검색 기능 오류 🔴
 
 **문제:**
+
 - `customers search "010" --field phone` 명령이 결과를 반환하지 않음
 - 데이터베이스에 "010"으로 시작하는 전화번호가 다수 존재함에도 검색되지 않음
 
 **예상 원인:**
+
 1. 전화번호 필드의 데이터베이스 쿼리에 문제가 있을 가능성
 2. 전화번호 형식 정규화 문제 (하이픈 포함 여부)
 3. `--field phone` 옵션의 쿼리 로직 오류
 
 **권장 조치:**
+
 - `src/modules/customers/repository.rs` 또는 `service.rs`의 전화번호 검색 로직 점검 필요
 - 전화번호 검색 시 하이픈 유무와 관계없이 검색이 가능하도록 개선 필요
 
@@ -280,18 +322,22 @@ cargo run -- customers search ""
 ### 4.2 검색 기능 개선 제안 💡
 
 #### 1. 대소문자 구분 없는 검색
+
 - 현재 영문 검색 시 대소문자 구분 여부 불명확
 - 대소문자 구분 없는 검색(case-insensitive) 기능 확인 필요
 
 #### 2. 검색 결과 정렬 옵션
+
 - API 문서에 `--sort-by` 및 `--order` 옵션이 명시되어 있지 않음
 - 검색 결과 정렬 기능 추가 고려
 
 #### 3. 페이지네이션
+
 - 대량 검색 결과 시 페이지네이션 기능 필요
 - `--page` 및 `--limit` 옵션 추가 고려
 
 #### 4. 출력 형식 옵션
+
 - `--format json` 또는 `--format csv` 옵션 테스트 미수행
 - 추가 검증 필요
 
@@ -300,12 +346,15 @@ cargo run -- customers search ""
 ## 5. 결론
 
 ### 전체 테스트 통과율
+
 - **총 테스트:** 14개
 - **성공:** 13개 (92.9%)
 - **실패:** 1개 (7.1%)
 
 ### 종합 평가
+
 고객 검색 기능은 대부분의 시나리오에서 정상적으로 작동하며, 특히 다음 기능들이 우수합니다:
+
 - ✅ 한글/영문 이름 검색
 - ✅ 이메일 필드 검색
 - ✅ 회사명 검색

@@ -54,6 +54,9 @@ pub trait CustomerRepository: Send + Sync {
         -> ErpResult<Vec<Customer>>;
     async fn count_customers(&self) -> ErpResult<i64>;
     async fn count_customers_by_status(&self, status: &CustomerStatus) -> ErpResult<i64>;
+    async fn get_customer_orders(&self, customer_id: Uuid) -> ErpResult<Vec<Uuid>>;
+    async fn delete_customer_order(&self, order_id: Uuid) -> ErpResult<()>;
+    async fn delete_customer_address(&self, address_id: Uuid) -> ErpResult<()>;
 }
 
 pub struct PostgresCustomerRepository {
@@ -689,6 +692,57 @@ impl CustomerRepository for PostgresCustomerRepository {
             "Database operations not yet implemented - use MockCustomerRepository for testing",
         ))
     }
+
+    async fn get_customer_orders(&self, customer_id: Uuid) -> ErpResult<Vec<Uuid>> {
+        let rows = sqlx::query!(
+            r#"
+            SELECT id
+            FROM sales_orders
+            WHERE customer_id = $1
+            "#,
+            customer_id
+        )
+        .fetch_all(&*self.pool)
+        .await
+        .map_err(|e| ErpError::database(format!("Failed to get customer orders: {}", e)))?;
+
+        Ok(rows.into_iter().map(|row| row.id).collect())
+    }
+
+    async fn delete_customer_order(&self, order_id: Uuid) -> ErpResult<()> {
+        let mut tx = self
+            .pool
+            .begin()
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to start transaction: {}", e)))?;
+
+        // First, delete all order items
+        sqlx::query!("DELETE FROM sales_order_items WHERE order_id = $1", order_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to delete order items: {}", e)))?;
+
+        // Then delete the order
+        sqlx::query!("DELETE FROM sales_orders WHERE id = $1", order_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to delete order: {}", e)))?;
+
+        tx.commit()
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to commit transaction: {}", e)))?;
+
+        Ok(())
+    }
+
+    async fn delete_customer_address(&self, address_id: Uuid) -> ErpResult<()> {
+        sqlx::query!("DELETE FROM customer_addresses WHERE id = $1", address_id)
+            .execute(&*self.pool)
+            .await
+            .map_err(|e| ErpError::database(format!("Failed to delete customer address: {}", e)))?;
+
+        Ok(())
+    }
 }
 
 // Mock repository for testing
@@ -983,5 +1037,23 @@ impl CustomerRepository for MockCustomerRepository {
     async fn count_customers_by_status(&self, status: &CustomerStatus) -> ErpResult<i64> {
         let customers = self.customers.lock().unwrap();
         Ok(customers.values().filter(|c| &c.status == status).count() as i64)
+    }
+
+    async fn get_customer_orders(&self, _customer_id: Uuid) -> ErpResult<Vec<Uuid>> {
+        // Mock implementation - returns empty list
+        Ok(Vec::new())
+    }
+
+    async fn delete_customer_order(&self, _order_id: Uuid) -> ErpResult<()> {
+        // Mock implementation - does nothing
+        Ok(())
+    }
+
+    async fn delete_customer_address(&self, address_id: Uuid) -> ErpResult<()> {
+        let mut addresses = self.addresses.lock().unwrap();
+        for customer_addresses in addresses.values_mut() {
+            customer_addresses.retain(|addr| addr.id != address_id);
+        }
+        Ok(())
     }
 }

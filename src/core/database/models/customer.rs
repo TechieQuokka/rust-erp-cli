@@ -531,3 +531,10 @@ mod tests {
         Customer::new(request)
     }
 }
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct DeleteCustomerResult {
+    pub customer_code: String,
+    pub customer_name: String,
+    pub orders_deleted: usize,
+}

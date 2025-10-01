@@ -1,6 +1,6 @@
 [package]
 name = "erp-cli"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 authors = ["ERP Team <team@example.com>"]
 description = "A high-performance modular ERP CLI system built with Rust"

@@ -193,6 +193,47 @@ impl CustomerService {
         Ok(())
     }
 
+    pub async fn delete_customer_cascade(&self, id: Uuid) -> ErpResult<DeleteCustomerResult> {
+        info!("Deleting customer with cascade: {}", id);
+
+        // Check if customer exists
+        let customer = self
+            .repository
+            .get_customer_by_id(id)
+            .await?
+            .ok_or_else(|| ErpError::not_found_simple("Customer not found"))?;
+
+        // Get all orders for this customer
+        let orders = self.repository.get_customer_orders(id).await?;
+        let order_count = orders.len();
+
+        // Delete all orders and their items
+        for order_id in orders {
+            self.repository.delete_customer_order(order_id).await?;
+            info!("Deleted order {} for customer {}", order_id, id);
+        }
+
+        // Delete customer addresses (if any)
+        let addresses = self.repository.get_customer_addresses(id).await?;
+        for address in &addresses {
+            self.repository.delete_customer_address(address.id).await?;
+        }
+
+        // Now delete the customer
+        self.repository.delete_customer(id).await?;
+
+        info!(
+            "Customer deleted successfully with cascade: {} ({}), {} orders deleted",
+            customer.customer_code, id, order_count
+        );
+
+        Ok(DeleteCustomerResult {
+            customer_code: customer.customer_code.clone(),
+            customer_name: customer.display_name(),
+            orders_deleted: order_count,
+        })
+    }
+
     pub async fn search_customers(
         &self,
         query: &str,

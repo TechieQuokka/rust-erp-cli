@@ -231,6 +231,9 @@ pub enum CustomerCommands {
         /// 강제 삭제 (확인 없이)
         #[clap(long)]
         force: bool,
+        /// 관련된 모든 주문도 함께 삭제
+        #[clap(long)]
+        cascade: bool,
     },
     /// 고객 검색
     Search {
