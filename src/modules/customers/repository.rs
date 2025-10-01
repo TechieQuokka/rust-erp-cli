@@ -72,7 +72,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let full_name = format!("{} {}", customer.first_name, customer.last_name)
             .trim()
             .to_string();
-        let _customer_type_str = match customer.customer_type {
+        let customer_type_str = match customer.customer_type {
             CustomerType::Individual => "individual",
             CustomerType::Business => "business",
             CustomerType::Wholesale => "wholesale",
@@ -81,8 +81,8 @@ impl CustomerRepository for PostgresCustomerRepository {
 
         sqlx::query!(
             r#"
-            INSERT INTO customers (id, name, email, phone, company, tax_id, credit_limit, current_balance, notes)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            INSERT INTO customers (id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
             "#,
             customer.id,
             full_name,
@@ -90,6 +90,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             customer.phone,
             customer.company_name,
             customer.tax_id,
+            customer_type_str,
             customer.credit_limit,
             customer.current_balance,
             customer.notes
@@ -132,7 +133,7 @@ impl CustomerRepository for PostgresCustomerRepository {
 
     async fn get_customer_by_id(&self, id: Uuid) -> ErpResult<Option<Customer>> {
         let row = sqlx::query!(
-            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes, status, created_at, updated_at
              FROM customers WHERE id = $1",
             id
         )
@@ -141,7 +142,12 @@ impl CustomerRepository for PostgresCustomerRepository {
         .map_err(|e| ErpError::database(format!("Failed to get customer by id: {}", e)))?;
 
         if let Some(row) = row {
-            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
+            let customer_type = match row.customer_type.as_str() {
+                "business" => CustomerType::Business,
+                "wholesale" => CustomerType::Wholesale,
+                "retail" => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
 
             let status = match row.status.as_deref() {
                 Some("active") => CustomerStatus::Active,
@@ -188,7 +194,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let partial_id = &customer_code[5..13]; // Extract the 8-char UUID prefix
 
         let row = sqlx::query!(
-            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes, status, created_at, updated_at
              FROM customers WHERE SUBSTRING(id::text, 1, 8) = $1",
             partial_id
         )
@@ -197,7 +203,12 @@ impl CustomerRepository for PostgresCustomerRepository {
         .map_err(|e| ErpError::database(format!("Failed to get customer by code: {}", e)))?;
 
         if let Some(row) = row {
-            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
+            let customer_type = match row.customer_type.as_str() {
+                "business" => CustomerType::Business,
+                "wholesale" => CustomerType::Wholesale,
+                "retail" => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
 
             let status = match row.status.as_deref() {
                 Some("active") => CustomerStatus::Active,
@@ -237,7 +248,7 @@ impl CustomerRepository for PostgresCustomerRepository {
 
     async fn get_customer_by_email(&self, email: &str) -> ErpResult<Option<Customer>> {
         let row = sqlx::query!(
-            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, status, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes, status, created_at, updated_at
              FROM customers WHERE email = $1",
             email
         )
@@ -246,7 +257,12 @@ impl CustomerRepository for PostgresCustomerRepository {
         .map_err(|e| ErpError::database(format!("Failed to get customer by email: {}", e)))?;
 
         if let Some(row) = row {
-            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
+            let customer_type = match row.customer_type.as_str() {
+                "business" => CustomerType::Business,
+                "wholesale" => CustomerType::Wholesale,
+                "retail" => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
 
             let status = match row.status.as_deref() {
                 Some("active") => CustomerStatus::Active,
@@ -397,7 +413,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let offset_param = param_count;
 
         let query = format!(
-            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes, created_at, updated_at
              FROM customers {} ORDER BY {} {} LIMIT ${} OFFSET ${}",
             where_clause, sort_field, sort_order, limit_param, offset_param
         );
@@ -407,6 +423,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             (
                 Uuid,
                 String,
+                Option<String>,
                 Option<String>,
                 Option<String>,
                 Option<String>,
@@ -439,6 +456,7 @@ impl CustomerRepository for PostgresCustomerRepository {
                 phone,
                 company,
                 tax_id,
+                customer_type_str,
                 credit_limit,
                 current_balance,
                 notes,
@@ -446,8 +464,13 @@ impl CustomerRepository for PostgresCustomerRepository {
                 updated_at,
             ) = row;
 
-            // Default customer type since column doesn't exist
-            let customer_type = CustomerType::Individual;
+            // Parse customer type from database
+            let customer_type = match customer_type_str.as_deref() {
+                Some("business") => CustomerType::Business,
+                Some("wholesale") => CustomerType::Wholesale,
+                Some("retail") => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
 
             // Split name into first and last name (simplified)
             let name_parts: Vec<&str> = name.splitn(2, ' ').collect();
@@ -472,7 +495,9 @@ impl CustomerRepository for PostgresCustomerRepository {
                 updated_at,
             };
 
-            customers.push(customer.to_response(Vec::new())); // Empty addresses for now
+            // Load addresses for each customer
+            let addresses = self.get_customer_addresses(customer.id).await?;
+            customers.push(customer.to_response(addresses));
         }
 
         Ok(CustomerListResponse {
@@ -487,7 +512,7 @@ impl CustomerRepository for PostgresCustomerRepository {
         let full_name = format!("{} {}", customer.first_name, customer.last_name)
             .trim()
             .to_string();
-        let _customer_type_str = match customer.customer_type {
+        let customer_type_str = match customer.customer_type {
             CustomerType::Individual => "individual",
             CustomerType::Business => "business",
             CustomerType::Wholesale => "wholesale",
@@ -504,8 +529,8 @@ impl CustomerRepository for PostgresCustomerRepository {
             r#"
             UPDATE customers
             SET name = $2, email = $3, phone = $4, company = $5,
-                tax_id = $6, credit_limit = $7, current_balance = $8, notes = $9,
-                status = $10, updated_at = CURRENT_TIMESTAMP
+                tax_id = $6, customer_type = $7, credit_limit = $8, current_balance = $9, notes = $10,
+                status = $11, updated_at = CURRENT_TIMESTAMP
             WHERE id = $1
             "#,
             id,
@@ -514,6 +539,7 @@ impl CustomerRepository for PostgresCustomerRepository {
             customer.phone,
             customer.company_name,
             customer.tax_id,
+            customer_type_str,
             customer.credit_limit,
             customer.current_balance,
             customer.notes,
@@ -588,7 +614,7 @@ impl CustomerRepository for PostgresCustomerRepository {
     async fn search_customers(&self, query: &str, limit: u32) -> ErpResult<Vec<Customer>> {
         let search_pattern = format!("%{}%", query);
         let rows = sqlx::query!(
-            "SELECT id, name, email, phone, company, tax_id, credit_limit, current_balance, notes, created_at, updated_at
+            "SELECT id, name, email, phone, company, tax_id, customer_type, credit_limit, current_balance, notes, created_at, updated_at
              FROM customers
              WHERE name ILIKE $1 OR email ILIKE $1 OR company ILIKE $1
              ORDER BY created_at DESC
@@ -602,7 +628,12 @@ impl CustomerRepository for PostgresCustomerRepository {
 
         let mut customers = Vec::new();
         for row in rows {
-            let customer_type = CustomerType::Individual; // Default since customer_type column doesn't exist
+            let customer_type = match row.customer_type.as_str() {
+                "business" => CustomerType::Business,
+                "wholesale" => CustomerType::Wholesale,
+                "retail" => CustomerType::Retail,
+                _ => CustomerType::Individual,
+            };
 
             let name_parts: Vec<&str> = row.name.splitn(2, ' ').collect();
             let first_name = name_parts.first().unwrap_or(&"").to_string();
@@ -713,9 +744,7 @@ impl CustomerRepository for MockCustomerRepository {
 
     async fn create_customer_address(&self, address: &CustomerAddress) -> ErpResult<()> {
         let mut addresses = self.addresses.lock().unwrap();
-        let customer_addresses = addresses
-            .entry(address.customer_id)
-            .or_default();
+        let customer_addresses = addresses.entry(address.customer_id).or_default();
 
         // If this is a default address, unset other defaults
         if address.is_default {

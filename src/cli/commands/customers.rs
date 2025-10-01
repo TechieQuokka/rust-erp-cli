@@ -73,7 +73,11 @@ impl CustomerHandler {
                 email,
                 phone,
                 address,
-            } => Self::handle_update(&service, id, name, email, phone, address).await,
+                company,
+                notes,
+            } => {
+                Self::handle_update(&service, id, name, email, phone, address, company, notes).await
+            }
 
             CustomerCommands::Delete { id, force } => {
                 Self::handle_delete(&service, id, *force).await
@@ -183,17 +187,13 @@ impl CustomerHandler {
         let request = CreateCustomerRequest {
             first_name: final_first_name,
             last_name: final_last_name,
-            company_name: if customer_type == CustomerType::Business {
-                company.clone()
-            } else {
-                None
-            },
+            company_name: company.clone(),
             email: validated_email,
             phone: validated_phone,
             customer_type: customer_type.clone(),
             credit_limit: Some(customer_type.default_credit_limit()),
             tax_id: tax_id.clone(),
-            notes: None,
+            notes: _notes.clone(),
             addresses,
         };
 
@@ -296,18 +296,34 @@ impl CustomerHandler {
             }
             "csv" => {
                 // Output as CSV
-                println!("Code,Name,Email,Type,Status,Credit Limit,Balance,Available");
+                println!("Code,Name,Email,Phone,Address,Type,Status,Credit Limit,Balance,Available,Notes");
                 for customer in &result.customers {
+                    let address_display = if let Some(addr) = customer.addresses.first() {
+                        format!(
+                            "{} {} {}",
+                            addr.street_address, addr.city, addr.state_province
+                        )
+                    } else {
+                        "-".to_string()
+                    };
+                    let notes_display = customer
+                        .notes
+                        .as_ref()
+                        .map(|n| n.replace(',', ";"))
+                        .unwrap_or_else(|| "-".to_string());
                     println!(
-                        "{},{},{},{},{},{},{},{}",
+                        "{},{},{},{},{},{},{},{},{},{},{}",
                         customer.customer_code,
                         customer.display_name(),
                         customer.email,
+                        customer.phone.clone().unwrap_or_else(|| "-".to_string()),
+                        address_display,
                         customer.customer_type,
                         customer.status,
                         customer.credit_limit,
                         customer.current_balance,
-                        customer.available_credit
+                        customer.available_credit,
+                        notes_display
                     );
                 }
             }
@@ -321,23 +337,52 @@ impl CustomerHandler {
                         "Code",
                         "Name",
                         "Email",
+                        "Phone",
+                        "Address",
                         "Type",
                         "Status",
                         "Credit Limit",
                         "Balance",
                         "Available",
+                        "Notes",
                     ]);
 
                 for customer in &result.customers {
+                    // Get primary address
+                    let address_display = if let Some(addr) = customer.addresses.first() {
+                        format!(
+                            "{}, {}, {}",
+                            addr.street_address, addr.city, addr.state_province
+                        )
+                    } else {
+                        "-".to_string()
+                    };
+
+                    // Truncate notes for display
+                    let notes_display = customer
+                        .notes
+                        .as_ref()
+                        .map(|n| {
+                            if n.len() > 30 {
+                                format!("{}...", &n[..27])
+                            } else {
+                                n.clone()
+                            }
+                        })
+                        .unwrap_or_else(|| "-".to_string());
+
                     table.add_row(vec![
                         customer.customer_code.clone(),
                         customer.display_name(),
                         customer.email.clone(),
+                        customer.phone.clone().unwrap_or_else(|| "-".to_string()),
+                        address_display,
                         customer.customer_type.to_string(),
                         customer.status.to_string(),
                         format!("${}", customer.credit_limit),
                         format!("${}", customer.current_balance),
                         format!("${}", customer.available_credit),
+                        notes_display,
                     ]);
                 }
 
@@ -355,6 +400,7 @@ impl CustomerHandler {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     async fn handle_update(
         service: &CustomerService,
         id: &str,
@@ -362,6 +408,8 @@ impl CustomerHandler {
         email: &Option<String>,
         phone: &Option<String>,
         address: &Option<String>,
+        company: &Option<String>,
+        notes: &Option<String>,
     ) -> ErpResult<()> {
         // Parse customer ID or code
         let customer_id = if let Ok(uuid) = Uuid::parse_str(id) {
@@ -374,43 +422,74 @@ impl CustomerHandler {
 
         // Parse name if provided
         let (first_name, last_name) = if let Some(name_str) = name {
-            let parts: Vec<&str> = name_str.split_whitespace().collect();
-            if parts.len() < 2 {
-                return Err(ErpError::validation_simple(
-                    "Please provide both first and last name",
-                ));
+            // Skip empty strings
+            if name_str.trim().is_empty() {
+                (None, None)
+            } else {
+                let parts: Vec<&str> = name_str.split_whitespace().collect();
+                if parts.len() < 2 {
+                    return Err(ErpError::validation_simple(
+                        "Please provide both first and last name separated by space (예: '김 철수')",
+                    ));
+                }
+                (Some(parts[0].to_string()), Some(parts[1..].join(" ")))
             }
-            (Some(parts[0].to_string()), Some(parts[1..].join(" ")))
         } else {
             (None, None)
         };
 
-        // Validate email if provided
-        let validated_email = if email.is_some() {
-            CliValidator::validate_email_optional(email)?
+        // Validate email if provided (skip empty strings)
+        let validated_email = if let Some(e) = email {
+            if e.trim().is_empty() {
+                None
+            } else {
+                CliValidator::validate_email_optional(&Some(e.clone()))?
+            }
         } else {
             None
         };
 
-        // Validate phone if provided
-        let validated_phone = if phone.is_some() {
-            CliValidator::validate_phone_optional(phone)?
+        // Validate phone if provided (skip empty strings)
+        let validated_phone = if let Some(p) = phone {
+            if p.trim().is_empty() {
+                None
+            } else {
+                CliValidator::validate_phone_optional(&Some(p.clone()))?
+            }
         } else {
             None
         };
+
+        // Process company name (skip empty strings)
+        let company_name = company.as_ref().and_then(|c| {
+            if c.trim().is_empty() {
+                None
+            } else {
+                Some(c.clone())
+            }
+        });
+
+        // Process notes (skip empty strings)
+        let notes_value = notes.as_ref().and_then(|n| {
+            if n.trim().is_empty() {
+                None
+            } else {
+                Some(n.clone())
+            }
+        });
 
         // Create update request
         let update_request = UpdateCustomerRequest {
             first_name,
             last_name,
-            company_name: None, // Not updating company name in this simple CLI
+            company_name,
             email: validated_email,
             phone: validated_phone,
             customer_type: None,
             status: None,
             credit_limit: None,
             tax_id: None,
-            notes: None,
+            notes: notes_value,
         };
 
         // Update customer
@@ -420,19 +499,60 @@ impl CustomerHandler {
         println!("Customer Code: {}", updated_customer.customer_code);
         println!("Name: {}", updated_customer.display_name());
         println!("Email: {}", updated_customer.email);
-        if let Some(phone) = updated_customer.phone {
+        if let Some(phone) = &updated_customer.phone {
             println!("Phone: {}", phone);
         }
+        if let Some(company_name) = &updated_customer.company_name {
+            println!("Company: {}", company_name);
+        }
+        println!("Type: {}", updated_customer.customer_type);
         println!("Status: {}", updated_customer.status);
-
-        // Handle address update (simplified - just show current addresses)
-        if address.is_some() {
-            println!("\nNote: Address update requires separate address management commands");
+        if let Some(notes) = &updated_customer.notes {
+            println!("Notes: {}", notes);
         }
 
-        if !updated_customer.addresses.is_empty() {
+        // Handle address update by adding a new address
+        if let Some(addr_str) = address {
+            if !addr_str.trim().is_empty() {
+                // Parse address format: "street, city, state[, zip, country]"
+                let addr_parts: Vec<&str> = addr_str.split(',').map(|s| s.trim()).collect();
+                if addr_parts.len() >= 3 {
+                    let address_request = CreateAddressRequest {
+                        address_type: AddressType::Both,
+                        street_address: addr_parts[0].to_string(),
+                        city: addr_parts.get(1).unwrap_or(&"").to_string(),
+                        state_province: addr_parts.get(2).unwrap_or(&"").to_string(),
+                        postal_code: addr_parts.get(3).unwrap_or(&"00000").to_string(),
+                        country: addr_parts.get(4).unwrap_or(&"USA").to_string(),
+                        is_default: true, // Make new address the default
+                    };
+
+                    match service
+                        .add_customer_address(customer_id, address_request)
+                        .await
+                    {
+                        Ok(new_addr) => {
+                            println!("\n✅ Address added successfully!");
+                            println!(
+                                "Address: {}",
+                                new_addr.formatted_address().replace('\n', ", ")
+                            );
+                        }
+                        Err(e) => {
+                            println!("\n⚠️  Failed to add address: {}", e);
+                        }
+                    }
+                } else {
+                    println!("\n⚠️  Address format invalid. Use: \"street, city, state[, zip, country]\"");
+                }
+            }
+        }
+
+        // Show all current addresses
+        let final_customer = service.get_customer_by_id(customer_id).await?;
+        if !final_customer.addresses.is_empty() {
             println!("\nCurrent Addresses:");
-            for (i, addr) in updated_customer.addresses.iter().enumerate() {
+            for (i, addr) in final_customer.addresses.iter().enumerate() {
                 println!(
                     "  {}. {} ({}{})",
                     i + 1,

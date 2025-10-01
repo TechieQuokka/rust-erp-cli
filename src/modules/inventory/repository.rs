@@ -162,94 +162,244 @@ impl InventoryRepository for PostgresInventoryRepository {
         &self,
         filter: &InventoryFilter,
     ) -> ErpResult<(Vec<InventoryItem>, i64)> {
-        let mut where_conditions = Vec::new();
-        let mut query_params: Vec<Box<dyn sqlx::Encode<sqlx::Postgres> + Send + 'static>> =
-            Vec::new();
-        let mut param_count = 0;
+        // Build COUNT query using QueryBuilder
+        let mut count_builder = sqlx::QueryBuilder::new("SELECT COUNT(*) FROM products");
 
-        // Build WHERE clause dynamically
+        let mut has_where = false;
+
         // Always exclude discontinued products unless explicitly requested
         if filter.status.is_none() {
-            where_conditions.push("status != 'discontinued'".to_string());
+            count_builder.push(" WHERE status != ");
+            count_builder.push_bind(ProductStatus::Discontinued);
+            has_where = true;
         }
 
         if let Some(category) = &filter.category {
-            param_count += 1;
-            where_conditions.push(format!("category = ${}", param_count));
-            query_params.push(Box::new(category.clone()));
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("category = ");
+            count_builder.push_bind(category);
         }
 
         if let Some(status) = &filter.status {
-            param_count += 1;
-            where_conditions.push(format!("status = ${}", param_count));
-            query_params.push(Box::new(status.clone()));
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("status = ");
+            count_builder.push_bind(status);
         }
 
         if let Some(sku) = &filter.sku {
-            param_count += 1;
-            where_conditions.push(format!("UPPER(sku) LIKE UPPER(${})", param_count));
-            query_params.push(Box::new(format!("%{}%", sku)));
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("UPPER(sku) LIKE UPPER(");
+            count_builder.push_bind(format!("%{}%", sku));
+            count_builder.push(")");
         }
 
         if let Some(name) = &filter.name {
-            param_count += 1;
-            where_conditions.push(format!("UPPER(name) LIKE UPPER(${})", param_count));
-            query_params.push(Box::new(format!("%{}%", name)));
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("UPPER(name) LIKE UPPER(");
+            count_builder.push_bind(format!("%{}%", name));
+            count_builder.push(")");
+        }
+
+        if let Some(search_query) = &filter.search_query {
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("(UPPER(name) LIKE UPPER(");
+            count_builder.push_bind(format!("%{}%", search_query));
+            count_builder.push(") OR UPPER(sku) LIKE UPPER(");
+            count_builder.push_bind(format!("%{}%", search_query));
+            count_builder.push(") OR UPPER(category) LIKE UPPER(");
+            count_builder.push_bind(format!("%{}%", search_query));
+            count_builder.push("))");
         }
 
         if let Some(true) = filter.low_stock_only {
-            where_conditions.push("quantity <= min_stock_level".to_string());
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("quantity <= min_stock_level");
         }
 
         if let Some(min_quantity) = filter.min_quantity {
-            param_count += 1;
-            where_conditions.push(format!("quantity >= ${}", param_count));
-            query_params.push(Box::new(min_quantity));
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+                has_where = true;
+            }
+            count_builder.push("quantity >= ");
+            count_builder.push_bind(min_quantity);
         }
 
         if let Some(max_quantity) = filter.max_quantity {
-            param_count += 1;
-            where_conditions.push(format!("quantity <= ${}", param_count));
-            query_params.push(Box::new(max_quantity));
+            if has_where {
+                count_builder.push(" AND ");
+            } else {
+                count_builder.push(" WHERE ");
+            }
+            count_builder.push("quantity <= ");
+            count_builder.push_bind(max_quantity);
         }
 
-        let where_clause = if where_conditions.is_empty() {
-            String::new()
-        } else {
-            format!("WHERE {}", where_conditions.join(" AND "))
-        };
-
-        // Count query
-        let count_query = format!("SELECT COUNT(*) FROM products {}", where_clause);
-
-        let total: i64 = sqlx::query(&count_query)
-            .execute(&self.pool)
+        // Execute count query
+        let count_result = count_builder
+            .build()
+            .fetch_one(&self.pool)
             .await
-            .map_err(|e| ErpError::internal(format!("Failed to count products: {}", e)))?
-            .rows_affected() as i64;
+            .map_err(|e| ErpError::internal(format!("Failed to count products: {}", e)))?;
 
-        // Main query with pagination
+        let total: i64 = count_result
+            .try_get(0)
+            .map_err(|e| ErpError::internal(format!("Failed to parse count: {}", e)))?;
+
+        // Build main query with same filters
+        let mut query_builder = sqlx::QueryBuilder::new("SELECT * FROM products");
+
+        let mut has_where = false;
+
+        // Apply same filters
+        if filter.status.is_none() {
+            query_builder.push(" WHERE status != ");
+            query_builder.push_bind(ProductStatus::Discontinued);
+            has_where = true;
+        }
+
+        if let Some(category) = &filter.category {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("category = ");
+            query_builder.push_bind(category);
+        }
+
+        if let Some(status) = &filter.status {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("status = ");
+            query_builder.push_bind(status);
+        }
+
+        if let Some(sku) = &filter.sku {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("UPPER(sku) LIKE UPPER(");
+            query_builder.push_bind(format!("%{}%", sku));
+            query_builder.push(")");
+        }
+
+        if let Some(name) = &filter.name {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("UPPER(name) LIKE UPPER(");
+            query_builder.push_bind(format!("%{}%", name));
+            query_builder.push(")");
+        }
+
+        if let Some(search_query) = &filter.search_query {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("(UPPER(name) LIKE UPPER(");
+            query_builder.push_bind(format!("%{}%", search_query));
+            query_builder.push(") OR UPPER(sku) LIKE UPPER(");
+            query_builder.push_bind(format!("%{}%", search_query));
+            query_builder.push(") OR UPPER(category) LIKE UPPER(");
+            query_builder.push_bind(format!("%{}%", search_query));
+            query_builder.push("))");
+        }
+
+        if let Some(true) = filter.low_stock_only {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("quantity <= min_stock_level");
+        }
+
+        if let Some(min_quantity) = filter.min_quantity {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+                has_where = true;
+            }
+            query_builder.push("quantity >= ");
+            query_builder.push_bind(min_quantity);
+        }
+
+        if let Some(max_quantity) = filter.max_quantity {
+            if has_where {
+                query_builder.push(" AND ");
+            } else {
+                query_builder.push(" WHERE ");
+            }
+            query_builder.push("quantity <= ");
+            query_builder.push_bind(max_quantity);
+        }
+
+        // Add ORDER BY clause
+        let (sort_field, sort_order) = build_sort_clause(&filter.sort_by, &filter.sort_order);
+        query_builder.push(format!(" ORDER BY {} {}", sort_field, sort_order));
+
+        // Add pagination
         let page = filter.page.unwrap_or(1);
         let limit = filter.limit.unwrap_or(20).min(100); // Cap at 100
         let offset = (page - 1) * limit;
 
-        param_count += 1;
-        let limit_param = param_count;
-        param_count += 1;
-        let offset_param = param_count;
+        query_builder.push(" LIMIT ");
+        query_builder.push_bind(limit as i64);
+        query_builder.push(" OFFSET ");
+        query_builder.push_bind(offset as i64);
 
-        // Build ORDER BY clause
-        let (sort_field, sort_order) = build_sort_clause(&filter.sort_by, &filter.sort_order);
-
-        let main_query = format!(
-            "SELECT * FROM products {} ORDER BY {} {} LIMIT ${} OFFSET ${}",
-            where_clause, sort_field, sort_order, limit_param, offset_param
-        );
-
-        // This is a simplified version - in practice, you'd need to properly bind all parameters
-        let products = sqlx::query_as::<_, Product>(&main_query)
-            .bind(limit as i64)
-            .bind(offset as i64)
+        // Execute main query
+        let products = query_builder
+            .build_query_as::<Product>()
             .fetch_all(&self.pool)
             .await
             .map_err(|e| ErpError::internal(format!("Failed to fetch products: {}", e)))?;

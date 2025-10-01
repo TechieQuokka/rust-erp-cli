@@ -26,7 +26,16 @@
       "Bash(if not exist reports mkdir reports)",
       "Bash(test:*)",
       "Bash($env:PGPASSWORD=\"2147483647\")",
-      "Bash(cat:*)"
+      "Bash(cat:*)",
+      "Bash(Get-Date -Format \"yyyyMMdd_HHmmss\")",
+      "Bash(tee:*)",
+      "Bash(powershell.exe:*)",
+      "Bash(findstr:*)",
+      "Bash(Select-String -Pattern \"검증 에러\")",
+      "Bash(Select-String -Pattern \"이미 존재\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"\\d customers\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f migrations/012_add_customer_type_column.sql)",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT customer_id, address_line1, city FROM customer_addresses WHERE customer_id IN (SELECT id FROM customers WHERE email = ''address-test@test.com'')\")"
     ],
     "deny": [],
     "ask": []

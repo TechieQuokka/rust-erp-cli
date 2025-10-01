@@ -659,10 +659,7 @@ impl DeploymentService {
 
         if !output.status.success() {
             let error = String::from_utf8_lossy(&output.stderr);
-            return Err(ErpError::internal(format!(
-                "Cargo build failed: {}",
-                error
-            )));
+            return Err(ErpError::internal(format!("Cargo build failed: {}", error)));
         }
 
         let build_output = String::from_utf8_lossy(&output.stdout);

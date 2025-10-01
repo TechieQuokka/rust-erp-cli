@@ -136,7 +136,9 @@ impl CustomerService {
 
         // Check for email conflicts if email is being updated
         if let Some(new_email) = &request.email {
-            if new_email != &customer.email && (self.repository.get_customer_by_email(new_email).await?).is_some() {
+            if new_email != &customer.email
+                && (self.repository.get_customer_by_email(new_email).await?).is_some()
+            {
                 return Err(ErpError::validation_simple("Email already exists"));
             }
         }

@@ -107,14 +107,25 @@ erp inventory add <제품명> [옵션]
 | `<제품명>` | 추가할 제품의 이름 |
 
 #### 옵션
-| 옵션 | 설명 | 필수 | 기본값 |
-|------|------|------|-------|
-| `--sku <SKU>` | 제품 식별 코드 | ✓ | |
-| `--category <카테고리>` | 제품 카테고리 | | |
-| `--quantity <수량>` | 초기 재고 수량 | ✓ | |
-| `--price <가격>` | 제품 가격 | ✓ | |
-| `--cost <원가>` | 제품 원가 | | 가격의 70% |
-| `--description <설명>` | 제품 설명 | | |
+| 옵션 | 설명 | 필수 | 기본값 | 제약 조건 |
+|------|------|------|-------|----------|
+| `--sku <SKU>` | 제품 식별 코드 | ✓ | | 영문, 숫자, -, _ 만 허용 |
+| `--category <카테고리>` | 제품 카테고리 | | general | |
+| `--quantity <수량>` | 초기 재고 수량 | ✓ | | 1 ~ 2,147,483,647 |
+| `--price <가격>` | 제품 가격 | ✓ | | 0.01 ~ 99,999,999,999,999.99 |
+| `--cost <원가>` | 제품 원가 | | 가격의 70% | 0.01 ~ 99,999,999,999,999.99 |
+| `--description <설명>` | 제품 설명 | | | |
+
+#### 검증 규칙
+
+- **제품명**: 비어있을 수 없으며, 최대 255자
+- **SKU**: 비어있을 수 없으며, 영문/숫자/하이픈/언더스코어만 허용, 최대 50자
+- **수량**: 1 이상, 최대 2,147,483,647 (i32 최대값)
+- **가격**: 0.01 이상, 최대 99,999,999,999,999.99
+- **원가**: 0.01 이상, 최대 99,999,999,999,999.99 (미지정 시 가격의 70%로 자동 계산)
+- **카테고리**: 미지정 시 "general"로 설정
+
+**참고**: 원가는 0 또는 음수가 될 수 없습니다. 무료 증정품이라도 실제 원가는 존재해야 합니다.
 
 #### 예시
 
@@ -238,15 +249,24 @@ erp inventory update <SKU> [옵션]
 | `<SKU>` | 수정할 제품의 SKU |
 
 #### 옵션
-| 옵션 | 설명 |
-|------|------|
-| `--name <제품명>` | 새로운 제품명 |
-| `--category <카테고리>` | 새로운 카테고리 |
-| `--quantity <수량>` | 새로운 재고 수량 |
-| `--price <가격>` | 새로운 가격 |
-| `--description <설명>` | 새로운 설명 |
+| 옵션 | 설명 | 제약 조건 |
+|------|------|----------|
+| `--name <제품명>` | 새로운 제품명 | 최대 255자 |
+| `--category <카테고리>` | 새로운 카테고리 | 최대 100자 |
+| `--quantity <수량>` | 새로운 재고 수량 | 0 이상 (음수 불가) |
+| `--price <가격>` | 새로운 가격 | 0.01 이상 (음수 불가) |
+| `--cost <원가>` | 새로운 원가 | 0.01 이상 (음수 불가) |
+| `--description <설명>` | 새로운 설명 | |
+
+#### 검증 규칙
+- **수량**: 음수 입력 시 명확한 에러 메시지 표시
+- **가격/원가**: 음수 또는 0 입력 시 명확한 에러 메시지 표시
+- **제품명**: 빈 값 불가
+- **카테고리**: 빈 값 불가
 
 #### 예시
+
+##### 배포된 바이너리 사용
 ```bash
 # 가격 수정
 erp inventory update MBP001 --price 1899.99
@@ -254,8 +274,47 @@ erp inventory update MBP001 --price 1899.99
 # 재고 수량 수정
 erp inventory update MBP001 --quantity 25
 
+# 원가 수정
+erp inventory update MBP001 --cost 1200.00
+
 # 여러 필드 동시 수정
 erp inventory update MBP001 --price 1799.99 --quantity 15 --description "할인 상품"
+
+# 가격과 원가 동시 수정
+erp inventory update MBP001 --price 1899.99 --cost 1300.00
+```
+
+##### 개발 환경에서 실행
+```bash
+# 가격 수정
+cargo run -- inventory update MBP001 --price 1899.99
+
+# 재고 수량 수정
+cargo run -- inventory update MBP001 --quantity 25
+
+# 원가 수정
+cargo run -- inventory update MBP001 --cost 1200.00
+
+# 여러 필드 동시 수정
+cargo run -- inventory update MBP001 --price 1799.99 --quantity 15 --description "할인 상품"
+
+# 가격과 원가 동시 수정
+cargo run -- inventory update MBP001 --price 1899.99 --cost 1300.00
+```
+
+#### 에러 처리 예시
+```bash
+# 음수 가격 입력 시
+cargo run -- inventory update TEST001 --price -50.00
+# 출력: Error: Validation error: price is 가격은 음수일 수 없습니다. 0보다 큰 값을 입력하세요
+
+# 음수 수량 입력 시
+cargo run -- inventory update TEST001 --quantity -10
+# 출력: Error: Validation error: quantity is 수량은 음수일 수 없습니다. 0 이상의 값을 입력하세요
+
+# 0원 가격 입력 시
+cargo run -- inventory update TEST001 --price 0.00
+# 출력: Error: Validation error: price is 가격은 0보다 커야 합니다
 ```
 
 ### inventory remove - 제품 삭제
@@ -341,7 +400,7 @@ erp customers add --first-name <성> --last-name <이름> [옵션]
 | `--first-name <성>` | 고객의 성 | | 개별 입력 방식 사용 시 |
 | `--last-name <이름>` | 고객의 이름 | | 개별 입력 방식 사용 시 |
 | `--phone <전화번호>` | 고객 전화번호 | | 한국식 형식 지원 (010-XXXX-XXXX) |
-| `--address <주소>` | 고객 주소 | | |
+| `--address <주소>` | 고객 주소 | | 쉼표로 구분된 형식 필요 (아래 참조) |
 | `--company <회사명>` | 회사명 (기업 고객인 경우 필수) | | |
 | `--tax-id <사업자등록번호>` | 사업자등록번호 (기업 고객인 경우 필수) | | |
 | `--notes <메모>` | 고객 관련 메모 | | |
@@ -360,6 +419,46 @@ erp customers add "김 철수" --email "kim@example.com"
 erp customers add --first-name "김" --last-name "철수" --email "kim@example.com"
 ```
 
+#### 주소 입력 방식
+
+주소는 **쉼표(,)로 구분된 형식**으로 입력해야 합니다.
+
+##### 형식
+```
+--address "거리주소, 시/구, 시/도[, 우편번호, 국가]"
+```
+
+- **필수 항목** (최소 3개): 거리주소, 시/구, 시/도
+- **선택 항목**: 우편번호 (기본값: "00000"), 국가 (기본값: "USA")
+
+##### 올바른 예시
+```bash
+# 기본 형식 (3개 필드)
+--address "테헤란로 123, 강남구, 서울시"
+
+# 상세 형식 (5개 필드)
+--address "세종대로 123, 종로구, 서울시, 03078, 대한민국"
+
+# 다양한 형식
+--address "반포대로 58, 서초구, 서울시"
+--address "역삼동 123, 강남구, 서울시, 06234, 한국"
+```
+
+##### 잘못된 예시 (저장되지 않음)
+```bash
+# ❌ 쉼표 없이 입력 (파싱 실패)
+--address "서울시 강남구 테헤란로 123"
+
+# ❌ 필드가 2개 이하 (최소 3개 필요)
+--address "서울시, 강남구"
+```
+
+##### 파싱 규칙
+1. 쉼표로 구분된 문자열을 파싱
+2. 각 필드의 앞뒤 공백 자동 제거
+3. 최소 3개 필드 필요 (거리, 시/구, 시/도)
+4. 누락된 선택 항목은 기본값 사용
+
 #### 예시
 
 ##### 배포된 바이너리 사용
@@ -368,7 +467,7 @@ erp customers add --first-name "김" --last-name "철수" --email "kim@example.c
 erp customers add "김 철수" \
   --email "kim@example.com" \
   --phone "010-1234-5678" \
-  --address "서울시 강남구 테헤란로 123"
+  --address "테헤란로 123, 강남구, 서울시"
 
 # 개인 고객 추가 (개별 방식)
 erp customers add \
@@ -376,7 +475,7 @@ erp customers add \
   --last-name "영희" \
   --email "lee@example.com" \
   --phone "010-2345-6789" \
-  --address "서울시 서초구 반포대로 58"
+  --address "반포대로 58, 서초구, 서울시"
 
 # 기업 고객 추가 (대표자 이름 개별 입력)
 erp customers add \
@@ -386,7 +485,7 @@ erp customers add \
   --phone "02-1234-5678" \
   --company "ABC Corporation" \
   --tax-id "1234567890" \
-  --address "서울시 강남구 역삼동 123" \
+  --address "역삼동 123, 강남구, 서울시" \
   --notes "주요 거래처"
 
 # 전화번호 다양한 형식 지원
@@ -405,7 +504,7 @@ erp customers add "최 민호" \
 cargo run -- customers add "김 철수" \
   --email "kim@example.com" \
   --phone "010-1234-5678" \
-  --address "서울시 강남구 테헤란로 123"
+  --address "테헤란로 123, 강남구, 서울시"
 
 # 개인 고객 추가 (개별 방식)
 cargo run -- customers add \
@@ -413,7 +512,7 @@ cargo run -- customers add \
   --last-name "영희" \
   --email "lee@example.com" \
   --phone "010-2345-6789" \
-  --address "서울시 서초구 반포대로 58"
+  --address "반포대로 58, 서초구, 서울시"
 
 # 기업 고객 추가
 cargo run -- customers add \
@@ -423,7 +522,7 @@ cargo run -- customers add \
   --phone "02-1234-5678" \
   --company "ABC Corporation" \
   --tax-id "1234567890" \
-  --address "서울시 강남구 역삼동 123" \
+  --address "역삼동 123, 강남구, 서울시" \
   --notes "주요 거래처"
 ```
 
@@ -1220,7 +1319,9 @@ erp config list --format yaml
 #### 재고 관리 (INVENTORY_*)
 - `INVENTORY_SKU_EXISTS`: 이미 존재하는 SKU
 - `INVENTORY_INSUFFICIENT_STOCK`: 재고 부족
-- `INVENTORY_INVALID_QUANTITY`: 잘못된 수량
+- `INVENTORY_INVALID_QUANTITY`: 잘못된 수량 (1 ~ 2,147,483,647 범위 외)
+- `INVENTORY_INVALID_PRICE`: 잘못된 가격 (0.01 ~ 99,999,999,999,999.99 범위 외)
+- `INVENTORY_INVALID_COST`: 잘못된 원가 (0.01 ~ 99,999,999,999,999.99 범위 외)
 
 #### 고객 관리 (CUSTOMER_*)
 - `CUSTOMER_EMAIL_EXISTS`: 이미 존재하는 이메일

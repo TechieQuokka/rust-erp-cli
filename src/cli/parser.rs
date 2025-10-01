@@ -217,6 +217,12 @@ pub enum CustomerCommands {
         /// 새로운 주소
         #[clap(long)]
         address: Option<String>,
+        /// 새로운 회사명
+        #[clap(long)]
+        company: Option<String>,
+        /// 새로운 메모
+        #[clap(long)]
+        notes: Option<String>,
     },
     /// 고객 삭제
     Delete {
