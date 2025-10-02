@@ -74,6 +74,12 @@ erp inventory add "iPad Pro" \
   --description "프로용 태블릿"
 ```
 
+**원가(Cost) 필드 안내:**
+- **자동 계산**: 원가를 지정하지 않으면 가격의 70%로 자동 설정
+- **직접 지정**: `--cost` 옵션으로 실제 원가 입력 가능
+- **유효 범위**: 0.01 ~ 99,999,999,999,999.99
+- **중요**: 원가는 0 또는 음수가 될 수 없습니다 (무료 증정품도 실제 원가 필요)
+
 #### 재고 목록 조회
 
 ```bash
@@ -110,9 +116,20 @@ erp inventory update MBP001 --price 1899.99
 # 재고 수량 수정
 erp inventory update MBP001 --quantity 25
 
+# 원가 수정
+erp inventory update MBP001 --cost 1200.00
+
 # 여러 필드 동시 수정
 erp inventory update MBP001 --price 1799.99 --quantity 15 --description "할인 상품"
+
+# 가격과 원가 동시 수정
+erp inventory update MBP001 --price 1899.99 --cost 1300.00
 ```
+
+**검증 규칙:**
+- **수량**: 음수 입력 시 에러 발생 (0 이상 필수)
+- **가격/원가**: 0 또는 음수 입력 시 에러 발생 (0.01 이상 필수)
+- **제품명/카테고리**: 빈 값 불가
 
 #### 재고 삭제
 
@@ -136,7 +153,7 @@ erp inventory remove MBP001 --force
 erp customers add "김 철수" \
   --email "kim@example.com" \
   --phone "010-1234-5678" \
-  --address "서울시 강남구"
+  --address "테헤란로 123, 강남구, 서울시"
 ```
 
 **방식 2: 성/이름 분리 입력** (더 명확한 방식)
@@ -147,7 +164,7 @@ erp customers add \
   --last-name "영희" \
   --email "lee@example.com" \
   --phone "010-2345-6789" \
-  --address "서울시 서초구"
+  --address "반포대로 58, 서초구, 서울시"
 
 # 기업 고객 추가 (대표자 이름 분리 입력)
 erp customers add \
@@ -157,15 +174,57 @@ erp customers add \
   --phone "02-1234-5678" \
   --company "ABC Corporation" \
   --tax-id "1234567890" \
-  --address "서울시 강남구 역삼동 123" \
+  --address "역삼동 123, 강남구, 서울시" \
   --notes "주요 거래처"
 ```
+
+**주소 입력 형식 안내:**
+
+주소는 **쉼표(,)로 구분된 형식**으로 입력해야 합니다.
+
+**형식:**
+```
+--address "거리주소, 시/구, 시/도[, 우편번호, 국가]"
+```
+
+- **필수 항목** (최소 3개): 거리주소, 시/구, 시/도
+- **선택 항목**: 우편번호 (기본값: "00000"), 국가 (기본값: "USA")
+
+**올바른 예시:**
+```bash
+# 기본 형식 (3개 필드)
+--address "테헤란로 123, 강남구, 서울시"
+
+# 상세 형식 (5개 필드)
+--address "세종대로 123, 종로구, 서울시, 03078, 대한민국"
+
+# 다양한 형식
+--address "반포대로 58, 서초구, 서울시"
+--address "역삼동 123, 강남구, 서울시, 06234, 한국"
+```
+
+**잘못된 예시 (저장되지 않음):**
+```bash
+# ❌ 쉼표 없이 입력 (파싱 실패)
+--address "서울시 강남구 테헤란로 123"
+
+# ❌ 필드가 2개 이하 (최소 3개 필요)
+--address "서울시, 강남구"
+```
+
+**전화번호 형식:**
+- 한국식: `010-1234-5678`, `02-1234-5678`
+- 괄호 포함: `(02) 1234-5678`
+- 다양한 형식 자동 지원
 
 #### 고객 목록 조회
 
 ```bash
 # 모든 고객 조회
 erp customers list
+
+# 검색어로 필터링
+erp customers list --search "김철수"
 
 # 페이지네이션과 정렬
 erp customers list --page 1 --limit 20 --sort-by name --order asc
@@ -177,11 +236,20 @@ erp customers list --format json
 #### 고객 검색
 
 ```bash
-# 고객 검색
-erp customers search --query "김철수"
+# 모든 필드에서 검색
+erp customers search "김철수"
+
+# 이름 필드에서만 검색
+erp customers search "김철수" --field name
+
+# 이메일 필드에서만 검색
+erp customers search "kim@example.com" --field email
+
+# 전화번호 필드에서만 검색
+erp customers search "010-1234-5678" --field phone
 
 # JSON 형식으로 검색 결과
-erp customers search --query "ABC" --format json
+erp customers search "ABC" --format json
 ```
 
 #### 고객 정보 업데이트
@@ -536,13 +604,42 @@ erp customers list --format csv > customers.csv
 
 ## 환경 변수
 
-주요 환경 변수들:
+시스템에서 사용하는 주요 환경 변수들입니다.
 
-- `DATABASE_URL`: 데이터베이스 연결 문자열
-- `REDIS_URL`: Redis 연결 문자열 (선택사항)
-- `JWT_SECRET`: JWT 토큰 비밀키
-- `LOG_LEVEL`: 로그 레벨 (debug, info, warn, error)
-- `ERP_CONFIG_PATH`: 설정 파일 경로
+| 변수명 | 설명 | 기본값 |
+|--------|------|--------|
+| `DATABASE_URL` | 데이터베이스 연결 문자열 | `sqlite://erp.db` |
+| `REDIS_URL` | Redis 연결 문자열 (캐싱용) | - |
+| `JWT_SECRET` | JWT 토큰 비밀키 | - |
+| `LOG_LEVEL` | 로그 레벨 | `info` |
+| `ERP_CONFIG_PATH` | 설정 파일 경로 | - |
+| `ERP_ENV` | 실행 환경 (development, production) | `development` |
+
+### 환경 변수 설정 예시
+
+#### Linux/macOS
+```bash
+export DATABASE_URL="postgresql://user:password@localhost/erp_db"
+export JWT_SECRET="your-secret-key-here"
+export LOG_LEVEL="debug"
+export ERP_ENV="production"
+```
+
+#### Windows (PowerShell)
+```powershell
+$env:DATABASE_URL="postgresql://user:password@localhost/erp_db"
+$env:JWT_SECRET="your-secret-key-here"
+$env:LOG_LEVEL="debug"
+$env:ERP_ENV="production"
+```
+
+#### Windows (명령 프롬프트)
+```cmd
+set DATABASE_URL=postgresql://user:password@localhost/erp_db
+set JWT_SECRET=your-secret-key-here
+set LOG_LEVEL=debug
+set ERP_ENV=production
+```
 
 ## 문제 해결
 

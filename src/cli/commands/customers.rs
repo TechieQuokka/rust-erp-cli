@@ -566,7 +566,12 @@ impl CustomerHandler {
         Ok(())
     }
 
-    async fn handle_delete(service: &CustomerService, id: &str, force: bool, cascade: bool) -> ErpResult<()> {
+    async fn handle_delete(
+        service: &CustomerService,
+        id: &str,
+        force: bool,
+        cascade: bool,
+    ) -> ErpResult<()> {
         // Parse customer ID or code
         let customer_id = if let Ok(uuid) = Uuid::parse_str(id) {
             uuid
@@ -622,8 +627,7 @@ impl CustomerHandler {
             println!("✅ Customer deleted successfully with cascade!");
             println!(
                 "Deleted: {} ({})",
-                result.customer_name,
-                result.customer_code
+                result.customer_name, result.customer_code
             );
             if result.orders_deleted > 0 {
                 println!("  └─ {} order(s) also deleted", result.orders_deleted);
@@ -642,9 +646,12 @@ impl CustomerHandler {
                     // Check if error is due to foreign key constraint
                     let error_msg = format!("{}", e);
                     if error_msg.contains("foreign key constraint")
-                        || error_msg.contains("sales_orders_customer_id_fkey") {
+                        || error_msg.contains("sales_orders_customer_id_fkey")
+                    {
                         println!("\n❌ Cannot delete customer: This customer has existing orders.");
-                        println!("💡 Tip: Use --cascade to delete the customer and all their orders:");
+                        println!(
+                            "💡 Tip: Use --cascade to delete the customer and all their orders:"
+                        );
                         println!("   cargo run -- customers delete {} --cascade", id);
                         return Ok(());
                     }

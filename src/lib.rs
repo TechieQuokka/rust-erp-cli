@@ -37,6 +37,7 @@
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 
+pub mod app_module;
 pub mod cli;
 pub mod core;
 pub mod modules;

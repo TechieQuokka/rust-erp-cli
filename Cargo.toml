@@ -48,6 +48,9 @@ tracing-appender = "0.2"
 # 비동기 trait
 async-trait = "0.1"
 
+# 의존성 주입
+shaku = { version = "0.6", features = ["derive"] }
+
 # 날짜/시간
 chrono = { version = "0.4", features = ["serde"] }
 

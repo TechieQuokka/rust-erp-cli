@@ -35,7 +35,18 @@
       "Bash(Select-String -Pattern \"이미 존재\")",
       "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"\\d customers\")",
       "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -f migrations/012_add_customer_type_column.sql)",
-      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT customer_id, address_line1, city FROM customer_addresses WHERE customer_id IN (SELECT id FROM customers WHERE email = ''address-test@test.com'')\")"
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT customer_id, address_line1, city FROM customer_addresses WHERE customer_id IN (SELECT id FROM customers WHERE email = ''address-test@test.com'')\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT id, name, email FROM customers WHERE email = ''test-delete-01@example.com'';\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT c.id, c.name, c.email, COUNT(so.id) as order_count FROM customers c LEFT JOIN sales_orders so ON c.id = so.customer_id GROUP BY c.id, c.name, c.email HAVING COUNT(so.id) > 0 LIMIT 1;\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT id FROM customers WHERE email = ''test-force-delete@example.com'';\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT COUNT(*) FROM sales_orders WHERE customer_id = ''00c0ad08-53c0-42dd-8e81-6fe76946d02d'';\")",
+      "Bash(PGPASSWORD=2147483647 psql -h localhost -U postgres -d erp_db -c \"SELECT COUNT(*) FROM customers WHERE id = ''00c0ad08-53c0-42dd-8e81-6fe76946d02d'';\")",
+      "WebFetch(domain:github.com)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "Bash(.targetdebugerp.exe sales list-orders --limit 5)",
+      "Bash(target/debug/erp.exe sales list-orders:*)",
+      "Bash(target/debug/erp.exe customers list:*)"
     ],
     "deny": [],
     "ask": []
