@@ -17,6 +17,16 @@ use crate::utils::validation::ValidationService;
 
 pub struct SalesHandler;
 
+struct ListOrdersParams<'a> {
+    status: &'a Option<String>,
+    customer: &'a Option<String>,
+    from_date: &'a Option<String>,
+    to_date: &'a Option<String>,
+    page: u32,
+    limit: u32,
+    format: &'a str,
+}
+
 impl SalesHandler {
     pub async fn handle(cmd: &SalesCommands, _config: &AppConfig) -> ErpResult<()> {
         let connection = DatabaseManager::get_connection().await?;
@@ -58,17 +68,18 @@ impl SalesHandler {
                 to_date,
                 page,
                 limit,
+                format,
             } => {
-                Self::handle_list_orders(
-                    &sales_service,
+                let params = ListOrdersParams {
                     status,
                     customer,
                     from_date,
                     to_date,
-                    *page,
-                    *limit,
-                )
-                .await
+                    page: *page,
+                    limit: *limit,
+                    format,
+                };
+                Self::handle_list_orders(&sales_service, params).await
             }
             SalesCommands::UpdateOrder { id, status, notes } => {
                 Self::handle_update_order(&sales_service, id, status, notes).await
@@ -147,21 +158,44 @@ impl SalesHandler {
 
     async fn handle_list_orders(
         sales_service: &SalesService,
-        status: &Option<String>,
-        customer: &Option<String>,
-        from_date: &Option<String>,
-        to_date: &Option<String>,
-        page: u32,
-        limit: u32,
+        params: ListOrdersParams<'_>,
     ) -> ErpResult<()> {
-        let offset = (page.saturating_sub(1)) as i64 * limit as i64;
+        // Validate page and limit
+        if params.page < 1 {
+            return Err(ErpError::validation(
+                "page",
+                "페이지 번호는 1 이상이어야 합니다",
+            ));
+        }
+        if params.limit < 1 {
+            return Err(ErpError::validation(
+                "limit",
+                "페이지당 항목 수는 1 이상이어야 합니다",
+            ));
+        }
 
-        let orders = if let Some(customer_str) = customer {
-            let customer_id = Uuid::from_str(customer_str)
-                .map_err(|_| ErpError::validation("customer_id", "invalid format"))?;
+        let offset = (params.page.saturating_sub(1)) as i64 * params.limit as i64;
+
+        let orders = if let Some(customer_str) = params.customer {
+            // Try to parse as UUID first, if that fails, assume it's a customer code
+            let customer_id = if let Ok(uuid) = Uuid::from_str(customer_str) {
+                uuid
+            } else {
+                // It's likely a customer code, need to look up the UUID
+                let connection = DatabaseManager::get_connection().await?;
+                let pool = connection.pool().clone();
+                let customer_repository = std::sync::Arc::new(PostgresCustomerRepository::new(
+                    std::sync::Arc::new(pool.clone()),
+                ));
+                let customer_service = CustomerService::new(customer_repository);
+
+                // Get customer by code
+                let customer = customer_service.get_customer_by_code(customer_str).await?;
+                customer.id
+            };
             sales_service.get_orders_by_customer(customer_id).await?
-        } else if from_date.is_some() || to_date.is_some() {
-            let start_date = if let Some(from) = from_date {
+        } else if params.from_date.is_some() || params.to_date.is_some() {
+            let start_date = if let Some(from) = params.from_date {
                 DateTime::parse_from_rfc3339(&format!("{}T00:00:00Z", from))
                     .map_err(|_| {
                         ErpError::validation("from_date", "invalid format (use YYYY-MM-DD)")
@@ -171,7 +205,7 @@ impl SalesHandler {
                 DateTime::from_timestamp(0, 0).unwrap_or_default()
             };
 
-            let end_date = if let Some(to) = to_date {
+            let end_date = if let Some(to) = params.to_date {
                 DateTime::parse_from_rfc3339(&format!("{}T23:59:59Z", to))
                     .map_err(|_| {
                         ErpError::validation("to_date", "invalid format (use YYYY-MM-DD)")
@@ -186,11 +220,11 @@ impl SalesHandler {
                 .await?
         } else {
             sales_service
-                .list_orders(Some(limit as i64), Some(offset))
+                .list_orders(Some(params.limit as i64), Some(offset))
                 .await?
         };
 
-        let filtered_orders: Vec<_> = if let Some(status_str) = status {
+        let filtered_orders: Vec<_> = if let Some(status_str) = params.status {
             let status_filter = Self::parse_order_status(status_str)?;
             orders
                 .into_iter()
@@ -205,8 +239,15 @@ impl SalesHandler {
             return Ok(());
         }
 
-        Self::display_orders_table(&filtered_orders);
-        println!("\nTotal orders: {}", filtered_orders.len());
+        match params.format.to_lowercase().as_str() {
+            "json" => Self::display_orders_json(&filtered_orders),
+            "csv" => Self::display_orders_csv(&filtered_orders),
+            _ => {
+                // Default to table format
+                Self::display_orders_table(&filtered_orders);
+                println!("\nTotal orders: {}", filtered_orders.len());
+            }
+        }
 
         Ok(())
     }
@@ -447,5 +488,46 @@ impl SalesHandler {
         println!();
 
         Self::display_order_summary(&invoice.order_summary);
+    }
+
+    fn display_orders_json(orders: &[SalesOrder]) {
+        use serde_json::json;
+
+        let orders_json: Vec<_> = orders
+            .iter()
+            .map(|order| {
+                json!({
+                    "order_number": order.order_number,
+                    "customer_id": order.customer_id.to_string(),
+                    "status": order.status.to_string(),
+                    "payment_status": order.payment_status.to_string(),
+                    "total_amount": order.total_amount.to_string(),
+                    "order_date": order.order_date.format("%Y-%m-%d").to_string(),
+                })
+            })
+            .collect();
+
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&orders_json).unwrap_or_else(|_| "[]".to_string())
+        );
+    }
+
+    fn display_orders_csv(orders: &[SalesOrder]) {
+        // Print CSV header
+        println!("Order Number,Customer ID,Status,Payment Status,Total Amount,Order Date");
+
+        // Print each order
+        for order in orders {
+            println!(
+                "{},{},{},{},{},{}",
+                order.order_number,
+                order.customer_id,
+                order.status,
+                order.payment_status,
+                order.total_amount,
+                order.order_date.format("%Y-%m-%d")
+            );
+        }
     }
 }

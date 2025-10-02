@@ -282,6 +282,9 @@ pub enum SalesCommands {
         /// 페이지당 아이템 수
         #[clap(long, default_value = "20")]
         limit: u32,
+        /// 출력 형식 (table, json, csv)
+        #[clap(long, default_value = "table")]
+        format: String,
     },
     /// 주문 상태 변경
     UpdateOrder {

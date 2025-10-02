@@ -745,20 +745,22 @@ erp sales list-orders [옵션]
 | 옵션 | 설명 | 기본값 |
 |------|------|-------|
 | `--status <상태>` | 주문 상태 필터 | 모든 상태 |
-| `--customer-id <ID>` | 특정 고객의 주문만 조회 | |
-| `--from <날짜>` | 시작 날짜 (YYYY-MM-DD) | |
-| `--to <날짜>` | 종료 날짜 (YYYY-MM-DD) | |
+| `--customer <ID>` | 특정 고객의 주문만 조회 | |
+| `--from-date <날짜>` | 시작 날짜 (YYYY-MM-DD) | |
+| `--to-date <날짜>` | 종료 날짜 (YYYY-MM-DD) | |
 | `--page <페이지>` | 페이지 번호 | 1 |
 | `--limit <개수>` | 페이지당 항목 수 | 20 |
-| `--format <형식>` | 출력 형식 | table |
+| `--format <형식>` | 출력 형식 (table, json, csv) | table |
 
 #### 주문 상태
+- `draft`: 임시저장
 - `pending`: 대기중
 - `confirmed`: 확인됨
 - `processing`: 처리중
 - `shipped`: 배송됨
 - `delivered`: 배송완료
 - `cancelled`: 취소됨
+- `returned`: 반품됨
 
 #### 예시
 ```bash
@@ -769,7 +771,16 @@ erp sales list-orders
 erp sales list-orders --status pending
 
 # 특정 기간 주문 조회
-erp sales list-orders --from "2024-01-01" --to "2024-01-31"
+erp sales list-orders --from-date "2024-01-01" --to-date "2024-01-31"
+
+# 특정 고객의 주문 조회
+erp sales list-orders --customer "550e8400-e29b-41d4-a716-446655440000"
+
+# JSON 형식으로 출력
+erp sales list-orders --format json
+
+# CSV 형식으로 출력
+erp sales list-orders --format csv --limit 100
 ```
 
 ### sales update-order - 주문 상태 변경
