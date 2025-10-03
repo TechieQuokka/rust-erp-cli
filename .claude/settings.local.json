@@ -48,7 +48,10 @@
       "Bash(target/debug/erp.exe sales list-orders:*)",
       "Bash(target/debug/erp.exe customers list:*)",
       "Bash(Select-String -Pattern \"ORD-000032\")",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(Select-String -Pattern \"Error|error\" -CaseSensitive)",
+      "Bash(Select-String -Pattern \"unexpected argument\" -CaseSensitive)",
+      "Bash(git mv:*)"
     ],
     "deny": [],
     "ask": []

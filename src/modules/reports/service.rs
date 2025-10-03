@@ -1,4 +1,5 @@
 use chrono::Utc;
+use printpdf::*;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::path::Path;
 use std::sync::Arc;
@@ -393,9 +394,10 @@ impl ReportsService {
                 return Ok(());
             }
             ReportFormat::Pdf => {
-                return Err(ErpError::unsupported(
-                    "PDF 내보내기는 아직 지원되지 않습니다",
-                ));
+                let pdf_bytes = self.generate_sales_summary_pdf(report)?;
+                fs::write(output_path, pdf_bytes)
+                    .await
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
         }
         Ok(())
@@ -429,9 +431,10 @@ impl ReportsService {
             }
             ReportFormat::Console => return Ok(()),
             ReportFormat::Pdf => {
-                return Err(ErpError::unsupported(
-                    "PDF 내보내기는 아직 지원되지 않습니다",
-                ));
+                let pdf_bytes = self.generate_inventory_status_pdf(report)?;
+                fs::write(output_path, pdf_bytes)
+                    .await
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
         }
         Ok(())
@@ -465,9 +468,10 @@ impl ReportsService {
             }
             ReportFormat::Console => return Ok(()),
             ReportFormat::Pdf => {
-                return Err(ErpError::unsupported(
-                    "PDF 내보내기는 아직 지원되지 않습니다",
-                ));
+                let pdf_bytes = self.generate_customer_analysis_pdf(report)?;
+                fs::write(output_path, pdf_bytes)
+                    .await
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
         }
         Ok(())
@@ -501,9 +505,10 @@ impl ReportsService {
             }
             ReportFormat::Console => return Ok(()),
             ReportFormat::Pdf => {
-                return Err(ErpError::unsupported(
-                    "PDF 내보내기는 아직 지원되지 않습니다",
-                ));
+                let pdf_bytes = self.generate_financial_overview_pdf(report)?;
+                fs::write(output_path, pdf_bytes)
+                    .await
+                    .map_err(|e| ErpError::io(format!("파일 쓰기 실패: {}", e)))?;
             }
         }
         Ok(())
@@ -749,13 +754,401 @@ impl ReportsService {
 
     fn generate_financial_overview_html(
         &self,
-        _report: &FinancialOverviewReport,
+        report: &FinancialOverviewReport,
     ) -> ErpResult<String> {
-        // 기본 HTML 구현
-        Ok(
-            "<html><body><h1>재무 개요 보고서</h1><p>HTML 형식 구현 중...</p></body></html>"
-                .to_string(),
-        )
+        let html = format!(
+            r#"
+<!DOCTYPE html>
+<html>
+<head>
+    <title>재무 개요 보고서</title>
+    <meta charset="UTF-8">
+    <style>
+        body {{ font-family: Arial, sans-serif; margin: 20px; }}
+        table {{ border-collapse: collapse; width: 100%; margin: 20px 0; }}
+        th, td {{ border: 1px solid #ddd; padding: 8px; text-align: left; }}
+        th {{ background-color: #f2f2f2; }}
+        .summary {{ margin-bottom: 20px; }}
+        .summary h2 {{ color: #333; }}
+        .chart-placeholder {{
+            width: 100%;
+            height: 300px;
+            background: #f0f0f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 20px 0;
+            border: 1px solid #ddd;
+        }}
+    </style>
+</head>
+<body>
+    <h1>재무 개요 보고서</h1>
+    <div class="summary">
+        <p><strong>생성 시간:</strong> {}</p>
+    </div>
+
+    <h2>수익 요약</h2>
+    <table>
+        <tr><th>항목</th><th>금액</th></tr>
+        <tr><td>총 매출</td><td>{}</td></tr>
+        <tr><td>제품 매출</td><td>{}</td></tr>
+        <tr><td>서비스 매출</td><td>{}</td></tr>
+        <tr><td>반복 매출</td><td>{}</td></tr>
+        <tr><td>일회성 매출</td><td>{}</td></tr>
+    </table>
+
+    <h2>비용 요약</h2>
+    <table>
+        <tr><th>항목</th><th>금액</th></tr>
+        <tr><td>총 비용</td><td>{}</td></tr>
+        <tr><td>매출원가</td><td>{}</td></tr>
+        <tr><td>운영비용</td><td>{}</td></tr>
+        <tr><td>마케팅비용</td><td>{}</td></tr>
+        <tr><td>관리비용</td><td>{}</td></tr>
+    </table>
+
+    <h2>수익성 분석</h2>
+    <table>
+        <tr><th>항목</th><th>값</th></tr>
+        <tr><td>총 이익</td><td>{}</td></tr>
+        <tr><td>순 이익</td><td>{}</td></tr>
+        <tr><td>영업 이익</td><td>{}</td></tr>
+        <tr><td>총 이익률</td><td>{}%</td></tr>
+        <tr><td>순 이익률</td><td>{}%</td></tr>
+        <tr><td>영업 이익률</td><td>{}%</td></tr>
+    </table>
+
+    <h2>현금 흐름</h2>
+    <table>
+        <tr><th>항목</th><th>금액</th></tr>
+        <tr><td>현금 유입</td><td>{}</td></tr>
+        <tr><td>현금 유출</td><td>{}</td></tr>
+        <tr><td>순 현금 흐름</td><td>{}</td></tr>
+        <tr><td>영업 현금 흐름</td><td>{}</td></tr>
+    </table>
+
+    <div class="chart-placeholder">
+        <p>차트 영역 (차트 라이브러리 통합 예정)</p>
+    </div>
+</body>
+</html>"#,
+            report.generated_at.format("%Y-%m-%d %H:%M:%S"),
+            report.revenue_summary.total_revenue,
+            report.revenue_summary.product_revenue,
+            report.revenue_summary.service_revenue,
+            report.revenue_summary.recurring_revenue,
+            report.revenue_summary.one_time_revenue,
+            report.expense_summary.total_expenses,
+            report.expense_summary.cost_of_goods_sold,
+            report.expense_summary.operating_expenses,
+            report.expense_summary.marketing_expenses,
+            report.expense_summary.administrative_expenses,
+            report.profit_analysis.gross_profit,
+            report.profit_analysis.net_profit,
+            report.profit_analysis.operating_profit,
+            report.profit_analysis.gross_margin,
+            report.profit_analysis.net_margin,
+            report.profit_analysis.operating_margin,
+            report.cash_flow.cash_inflow,
+            report.cash_flow.cash_outflow,
+            report.cash_flow.net_cash_flow,
+            report.cash_flow.operating_cash_flow,
+        );
+        Ok(html)
+    }
+
+    // PDF 생성 메서드들
+    fn generate_sales_summary_pdf(&self, report: &SalesSummaryReport) -> ErpResult<Vec<u8>> {
+        let (doc, page1, layer1) =
+            PdfDocument::new("매출 요약 보고서", Mm(210.0), Mm(297.0), "Layer 1");
+        let font = doc
+            .add_builtin_font(BuiltinFont::Helvetica)
+            .map_err(|e| ErpError::internal(format!("PDF 폰트 로드 실패: {:?}", e)))?;
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+
+        // 제목
+        current_layer.use_text("매출 요약 보고서", 24.0, Mm(20.0), Mm(270.0), &font);
+
+        // 생성 시간
+        let generated_at = format!(
+            "생성 시간: {}",
+            report.generated_at.format("%Y-%m-%d %H:%M:%S")
+        );
+        current_layer.use_text(&generated_at, 12.0, Mm(20.0), Mm(250.0), &font);
+
+        // 요약 정보
+        let y_pos = 230.0;
+        current_layer.use_text(
+            format!("총 주문 수: {}", report.total_orders),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos),
+            &font,
+        );
+        current_layer.use_text(
+            format!("총 매출: {}", report.total_revenue),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 10.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("총 판매 수량: {}", report.total_items_sold),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 20.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("평균 주문 금액: {}", report.average_order_value),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 30.0),
+            &font,
+        );
+
+        // 상위 판매 제품
+        let mut y = y_pos - 50.0;
+        current_layer.use_text("상위 판매 제품", 14.0, Mm(20.0), Mm(y), &font);
+        y -= 15.0;
+
+        for product in &report.top_selling_products {
+            let product_line = format!(
+                "{} ({}): {} 판매, 매출 {}",
+                product.name, product.sku, product.quantity_sold, product.total_revenue
+            );
+            current_layer.use_text(&product_line, 10.0, Mm(25.0), Mm(y), &font);
+            y -= 12.0;
+            if y < 30.0 {
+                break;
+            } // 페이지 하단 근처면 중지
+        }
+
+        doc.save_to_bytes()
+            .map_err(|e| ErpError::internal(format!("PDF 저장 실패: {:?}", e)))
+    }
+
+    fn generate_inventory_status_pdf(&self, report: &InventoryStatusReport) -> ErpResult<Vec<u8>> {
+        let (doc, page1, layer1) =
+            PdfDocument::new("재고 상태 보고서", Mm(210.0), Mm(297.0), "Layer 1");
+        let font = doc
+            .add_builtin_font(BuiltinFont::Helvetica)
+            .map_err(|e| ErpError::internal(format!("PDF 폰트 로드 실패: {:?}", e)))?;
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+
+        // 제목
+        current_layer.use_text("재고 상태 보고서", 24.0, Mm(20.0), Mm(270.0), &font);
+
+        // 생성 시간
+        let generated_at = format!(
+            "생성 시간: {}",
+            report.generated_at.format("%Y-%m-%d %H:%M:%S")
+        );
+        current_layer.use_text(&generated_at, 12.0, Mm(20.0), Mm(250.0), &font);
+
+        // 요약 정보
+        let y_pos = 230.0;
+        current_layer.use_text(
+            format!("총 제품 수: {}", report.total_products),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos),
+            &font,
+        );
+        current_layer.use_text(
+            format!("총 재고 가치: {}", report.total_stock_value),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 10.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("저재고 아이템: {}", report.low_stock_items.len()),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 20.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("품절 아이템: {}", report.out_of_stock_items.len()),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 30.0),
+            &font,
+        );
+
+        // 저재고 아이템
+        if !report.low_stock_items.is_empty() {
+            let mut y = y_pos - 50.0;
+            current_layer.use_text("저재고 아이템", 14.0, Mm(20.0), Mm(y), &font);
+            y -= 15.0;
+
+            for item in &report.low_stock_items {
+                let item_line = format!(
+                    "{} ({}): 현재 {}, 재주문 레벨 {}",
+                    item.name, item.sku, item.current_stock, item.reorder_level
+                );
+                current_layer.use_text(&item_line, 10.0, Mm(25.0), Mm(y), &font);
+                y -= 12.0;
+                if y < 30.0 {
+                    break;
+                }
+            }
+        }
+
+        doc.save_to_bytes()
+            .map_err(|e| ErpError::internal(format!("PDF 저장 실패: {:?}", e)))
+    }
+
+    fn generate_customer_analysis_pdf(
+        &self,
+        report: &CustomerAnalysisReport,
+    ) -> ErpResult<Vec<u8>> {
+        let (doc, page1, layer1) =
+            PdfDocument::new("고객 분석 보고서", Mm(210.0), Mm(297.0), "Layer 1");
+        let font = doc
+            .add_builtin_font(BuiltinFont::Helvetica)
+            .map_err(|e| ErpError::internal(format!("PDF 폰트 로드 실패: {:?}", e)))?;
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+
+        // 제목
+        current_layer.use_text("고객 분석 보고서", 24.0, Mm(20.0), Mm(270.0), &font);
+
+        // 생성 시간
+        let generated_at = format!(
+            "생성 시간: {}",
+            report.generated_at.format("%Y-%m-%d %H:%M:%S")
+        );
+        current_layer.use_text(&generated_at, 12.0, Mm(20.0), Mm(250.0), &font);
+
+        // 요약 정보
+        let y_pos = 230.0;
+        current_layer.use_text(
+            format!("분석 기간: {}개월", report.analysis_period_months),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos),
+            &font,
+        );
+        current_layer.use_text(
+            format!("총 고객 수: {}", report.total_customers),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 10.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("활성 고객: {}", report.active_customers),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 20.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("신규 고객: {}", report.new_customers),
+            12.0,
+            Mm(20.0),
+            Mm(y_pos - 30.0),
+            &font,
+        );
+
+        // 상위 고객
+        if !report.top_customers.is_empty() {
+            let mut y = y_pos - 50.0;
+            current_layer.use_text("상위 고객", 14.0, Mm(20.0), Mm(y), &font);
+            y -= 15.0;
+
+            for customer in &report.top_customers {
+                let customer_line = format!(
+                    "{}: {} 주문, 총 {}",
+                    customer.name, customer.total_orders, customer.total_spent
+                );
+                current_layer.use_text(&customer_line, 10.0, Mm(25.0), Mm(y), &font);
+                y -= 12.0;
+                if y < 30.0 {
+                    break;
+                }
+            }
+        }
+
+        doc.save_to_bytes()
+            .map_err(|e| ErpError::internal(format!("PDF 저장 실패: {:?}", e)))
+    }
+
+    fn generate_financial_overview_pdf(
+        &self,
+        report: &FinancialOverviewReport,
+    ) -> ErpResult<Vec<u8>> {
+        let (doc, page1, layer1) =
+            PdfDocument::new("재무 개요 보고서", Mm(210.0), Mm(297.0), "Layer 1");
+        let font = doc
+            .add_builtin_font(BuiltinFont::Helvetica)
+            .map_err(|e| ErpError::internal(format!("PDF 폰트 로드 실패: {:?}", e)))?;
+        let current_layer = doc.get_page(page1).get_layer(layer1);
+
+        // 제목
+        current_layer.use_text("재무 개요 보고서", 24.0, Mm(20.0), Mm(270.0), &font);
+
+        // 생성 시간
+        let generated_at = format!(
+            "생성 시간: {}",
+            report.generated_at.format("%Y-%m-%d %H:%M:%S")
+        );
+        current_layer.use_text(&generated_at, 12.0, Mm(20.0), Mm(250.0), &font);
+
+        // 수익 요약
+        let y_pos = 230.0;
+        current_layer.use_text("수익 요약", 14.0, Mm(20.0), Mm(y_pos), &font);
+        current_layer.use_text(
+            format!("총 수익: {}", report.revenue_summary.total_revenue),
+            12.0,
+            Mm(25.0),
+            Mm(y_pos - 15.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("제품 수익: {}", report.revenue_summary.product_revenue),
+            12.0,
+            Mm(25.0),
+            Mm(y_pos - 25.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("서비스 수익: {}", report.revenue_summary.service_revenue),
+            12.0,
+            Mm(25.0),
+            Mm(y_pos - 35.0),
+            &font,
+        );
+
+        // 수익성 분석
+        let y = y_pos - 55.0;
+        current_layer.use_text("수익성 분석", 14.0, Mm(20.0), Mm(y), &font);
+        current_layer.use_text(
+            format!("총 이익: {}", report.profit_analysis.gross_profit),
+            12.0,
+            Mm(25.0),
+            Mm(y - 15.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("순이익: {}", report.profit_analysis.net_profit),
+            12.0,
+            Mm(25.0),
+            Mm(y - 25.0),
+            &font,
+        );
+        current_layer.use_text(
+            format!("영업 이익: {}", report.profit_analysis.operating_profit),
+            12.0,
+            Mm(25.0),
+            Mm(y - 35.0),
+            &font,
+        );
+
+        doc.save_to_bytes()
+            .map_err(|e| ErpError::internal(format!("PDF 저장 실패: {:?}", e)))
     }
 }
 
@@ -821,6 +1214,7 @@ mod tests {
             format: ReportFormat::Json,
             output_path: None,
             filters: ReportFilters::default(),
+            include_charts: false,
         };
 
         let result = service.generate_sales_summary(&request).await;
@@ -842,6 +1236,7 @@ mod tests {
             format: ReportFormat::Console,
             output_path: None,
             filters: ReportFilters::default(),
+            include_charts: false,
         };
 
         let result = service.generate_inventory_status(&request).await;
@@ -874,6 +1269,7 @@ mod tests {
             format: ReportFormat::Console,
             output_path: None,
             filters: ReportFilters::default(),
+            include_charts: false,
         };
 
         let result = service.generate_customer_analysis(0, &request).await;

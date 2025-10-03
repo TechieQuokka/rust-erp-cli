@@ -85,6 +85,7 @@ mod tests {
             format: ReportFormat::Console,
             output_path: None,
             filters: ReportFilters::default(),
+            include_charts: false,
         };
 
         let result = service.generate_sales_summary(&request).await;

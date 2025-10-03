@@ -277,6 +277,7 @@ pub struct ReportRequest {
     pub format: ReportFormat,
     pub output_path: Option<String>,
     pub filters: ReportFilters,
+    pub include_charts: bool,
 }
 
 /// 보고서 타입
@@ -297,6 +298,7 @@ pub struct ReportFilters {
     pub order_statuses: Option<Vec<String>>,
     pub payment_statuses: Option<Vec<String>>,
     pub low_stock_only: bool,
+    pub low_stock_threshold: Option<u32>,
     pub include_inactive: bool,
 }
 
@@ -332,7 +334,7 @@ impl std::str::FromStr for ReportFormat {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s.to_lowercase().as_str() {
-            "console" => Ok(ReportFormat::Console),
+            "console" | "table" => Ok(ReportFormat::Console),
             "json" => Ok(ReportFormat::Json),
             "csv" => Ok(ReportFormat::Csv),
             "html" => Ok(ReportFormat::Html),

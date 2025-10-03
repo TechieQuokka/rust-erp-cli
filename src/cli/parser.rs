@@ -332,15 +332,21 @@ pub enum ReportCommands {
     },
     /// 재고 상태 보고서
     InventoryStatus {
-        /// 출력 형식 (console, json, csv, html, pdf)
+        /// 출력 형식 (console, table, json, csv, html, pdf)
         #[clap(long, default_value = "console")]
         format: String,
         /// 출력 파일 경로
         #[clap(long)]
         output: Option<String>,
+        /// 특정 카테고리만 포함
+        #[clap(long)]
+        category: Option<String>,
         /// 저재고만 표시
         #[clap(long)]
         low_stock_only: bool,
+        /// 저재고 기준 수량
+        #[clap(long)]
+        threshold: Option<u32>,
     },
     /// 고객 분석 보고서
     CustomerAnalysis {
@@ -362,12 +368,18 @@ pub enum ReportCommands {
         /// 종료 날짜 (YYYY-MM-DD)
         #[clap(long)]
         to_date: Option<String>,
-        /// 출력 형식 (console, json, csv, html, pdf)
-        #[clap(long, default_value = "console")]
+        /// 기간 (daily, weekly, monthly, quarterly, yearly)
+        #[clap(long)]
+        period: Option<String>,
+        /// 출력 형식 (table, console, json, csv, html, pdf)
+        #[clap(long, default_value = "table")]
         format: String,
         /// 출력 파일 경로
         #[clap(long)]
         output: Option<String>,
+        /// 차트 포함 여부
+        #[clap(long)]
+        include_charts: bool,
     },
 }
 

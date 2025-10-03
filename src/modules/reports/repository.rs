@@ -975,9 +975,9 @@ impl ReportsRepository for MockReportsRepository {
         Ok(vec![])
     }
 
-    async fn get_customer_analysis(&self, _months: u32) -> ErpResult<CustomerAnalysisReport> {
+    async fn get_customer_analysis(&self, months: u32) -> ErpResult<CustomerAnalysisReport> {
         Ok(CustomerAnalysisReport {
-            analysis_period_months: 3,
+            analysis_period_months: months,
             generated_at: Utc::now(),
             total_customers: 25,
             active_customers: 20,

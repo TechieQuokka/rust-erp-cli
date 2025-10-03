@@ -27,8 +27,13 @@ impl ReportsHandler {
             ReportCommands::InventoryStatus {
                 format,
                 output,
+                category,
                 low_stock_only,
-            } => Self::handle_inventory_status(format, output, *low_stock_only).await,
+                threshold,
+            } => {
+                Self::handle_inventory_status(format, output, category, *low_stock_only, *threshold)
+                    .await
+            }
             ReportCommands::CustomerAnalysis {
                 months,
                 format,
@@ -37,9 +42,21 @@ impl ReportsHandler {
             ReportCommands::FinancialOverview {
                 from_date,
                 to_date,
+                period,
                 format,
                 output,
-            } => Self::handle_financial_overview(from_date, to_date, format, output).await,
+                include_charts,
+            } => {
+                Self::handle_financial_overview(
+                    from_date,
+                    to_date,
+                    period,
+                    format,
+                    output,
+                    *include_charts,
+                )
+                .await
+            }
         }
     }
 
@@ -80,6 +97,7 @@ impl ReportsHandler {
             format: validated_format.clone(),
             output_path: output.clone(),
             filters: ReportFilters::default(),
+            include_charts: false,
         };
 
         let report = reports_service.generate_sales_summary(&request).await?;
@@ -108,7 +126,9 @@ impl ReportsHandler {
     async fn handle_inventory_status(
         format: &str,
         output: &Option<String>,
+        category: &Option<String>,
         low_stock_only: bool,
+        threshold: Option<u32>,
     ) -> ErpResult<()> {
         // 입력 검증
         let validated_format: ReportFormat = format.parse()?;
@@ -117,7 +137,9 @@ impl ReportsHandler {
         let reports_service = create_reports_service(None); // Mock 사용
 
         let filters = ReportFilters {
+            categories: category.as_ref().map(|c| vec![c.clone()]),
             low_stock_only,
+            low_stock_threshold: threshold,
             ..Default::default()
         };
 
@@ -127,6 +149,7 @@ impl ReportsHandler {
             format: validated_format.clone(),
             output_path: output.clone(),
             filters,
+            include_charts: false,
         };
 
         let report = reports_service.generate_inventory_status(&request).await?;
@@ -176,6 +199,7 @@ impl ReportsHandler {
             format: validated_format.clone(),
             output_path: output.clone(),
             filters: ReportFilters::default(),
+            include_charts: false,
         };
 
         let report = reports_service
@@ -206,8 +230,10 @@ impl ReportsHandler {
     async fn handle_financial_overview(
         from_date: &Option<String>,
         to_date: &Option<String>,
+        period: &Option<String>,
         format: &str,
         output: &Option<String>,
+        include_charts: bool,
     ) -> ErpResult<()> {
         // 입력 검증
         let (validated_from_date, validated_to_date) =
@@ -217,11 +243,24 @@ impl ReportsHandler {
         // 보고서 서비스 초기화
         let reports_service = create_reports_service(None); // Mock 사용
 
-        // 기간 설정 (기본값: 지난 달)
+        // 기간 설정
         let report_period = if let (Some(from), Some(to)) = (validated_from_date, validated_to_date)
         {
+            // 날짜 범위가 지정된 경우
             ReportPeriod::Custom { from, to }
+        } else if let Some(period_str) = period {
+            // period 옵션이 지정된 경우
+            let validated_period = CliValidator::validate_report_period(period_str)?;
+            match validated_period.as_str() {
+                "daily" => ReportPeriod::Daily,
+                "weekly" => ReportPeriod::Weekly,
+                "monthly" => ReportPeriod::Monthly,
+                "quarterly" => ReportPeriod::Quarterly,
+                "yearly" => ReportPeriod::Yearly,
+                _ => ReportPeriod::Monthly,
+            }
         } else {
+            // 기본값: 지난 달
             ReportPeriod::Monthly
         };
 
@@ -231,6 +270,7 @@ impl ReportsHandler {
             format: validated_format.clone(),
             output_path: output.clone(),
             filters: ReportFilters::default(),
+            include_charts,
         };
 
         let report = reports_service
@@ -240,6 +280,9 @@ impl ReportsHandler {
         match validated_format {
             ReportFormat::Console => {
                 Self::display_financial_overview_console(&report);
+                if include_charts {
+                    println!("\n[차트는 HTML 또는 PDF 형식에서 표시됩니다]");
+                }
             }
             _ => {
                 if let Some(output_path) = output {
@@ -668,7 +711,9 @@ mod tests {
         let command = ReportCommands::InventoryStatus {
             format: "console".to_string(),
             output: None,
+            category: None,
             low_stock_only: true,
+            threshold: None,
         };
 
         let result = ReportsHandler::handle(&command, &config).await;

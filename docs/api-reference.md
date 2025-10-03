@@ -895,16 +895,24 @@ erp reports inventory-status [옵션]
 | `--category <카테고리>` | 특정 카테고리만 포함 | 모든 카테고리 |
 | `--low-stock-only` | 저재고 상품만 포함 | false |
 | `--threshold <수량>` | 저재고 기준 수량 | 10 |
-| `--format <형식>` | 출력 형식 | table |
+| `--format <형식>` | 출력 형식 (console, table, json, csv, html, pdf) | console |
 | `--output <파일경로>` | 출력 파일 경로 | |
+
+**참고**: `table` 형식은 `console`의 별칭입니다.
 
 #### 예시
 ```bash
 # 전체 재고 상태
 erp reports inventory-status
 
-# 저재고 상품만
+# 저재고 상품만 (기준: 5개)
 erp reports inventory-status --low-stock-only --threshold 5
+
+# 특정 카테고리
+erp reports inventory-status --category "전자제품"
+
+# 복합 옵션
+erp reports inventory-status --category "전자제품" --threshold 5 --low-stock-only
 
 # JSON 형식으로 저장
 erp reports inventory-status --format json --output "inventory_status.json"
