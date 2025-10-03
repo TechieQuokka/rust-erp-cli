@@ -258,13 +258,13 @@ impl CliValidator {
     }
 
     pub fn validate_report_format(format: &str) -> ErpResult<String> {
-        let valid_formats = ["table", "csv", "json", "pdf", "html"];
+        let valid_formats = ["console", "csv", "json", "pdf", "html"];
         let normalized = format.trim().to_lowercase();
 
         if !valid_formats.contains(&normalized.as_str()) {
             return Err(ErpError::validation(
                 "format",
-                "출력 형식은 'table', 'csv', 'json', 'pdf', 'html' 중 하나여야 합니다",
+                "출력 형식은 'console', 'csv', 'json', 'pdf', 'html' 중 하나여야 합니다",
             ));
         }
 

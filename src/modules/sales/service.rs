@@ -313,7 +313,8 @@ impl SalesService {
                 }
             } else if status == OrderStatus::Cancelled {
                 // Restore inventory only if order was previously confirmed or processing
-                if order.status == OrderStatus::Confirmed || order.status == OrderStatus::Processing {
+                if order.status == OrderStatus::Confirmed || order.status == OrderStatus::Processing
+                {
                     let items = self.repository.get_order_items(id).await?;
                     for item in &items {
                         inventory_service

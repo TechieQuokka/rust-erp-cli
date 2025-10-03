@@ -862,10 +862,10 @@ erp reports sales-summary [옵션]
 #### 옵션
 | 옵션 | 설명 | 기본값 |
 |------|------|-------|
-| `--period <기간>` | 보고서 기간 (daily, weekly, monthly, yearly) | monthly |
-| `--from <날짜>` | 시작 날짜 (YYYY-MM-DD) | |
-| `--to <날짜>` | 종료 날짜 (YYYY-MM-DD) | |
-| `--format <형식>` | 출력 형식 (table, json, csv, pdf) | table |
+| `--period <기간>` | 보고서 기간 (daily, weekly, monthly, quarterly, yearly, custom) | monthly |
+| `--from-date <날짜>` | 시작 날짜 (YYYY-MM-DD) | |
+| `--to-date <날짜>` | 종료 날짜 (YYYY-MM-DD) | |
+| `--format <형식>` | 출력 형식 (console, json, csv, html, pdf) | console |
 | `--output <파일경로>` | 출력 파일 경로 | |
 
 #### 예시
@@ -874,7 +874,7 @@ erp reports sales-summary [옵션]
 erp reports sales-summary --period monthly
 
 # 특정 기간 매출 요약
-erp reports sales-summary --from "2024-01-01" --to "2024-01-31"
+erp reports sales-summary --from-date "2024-01-01" --to-date "2024-01-31"
 
 # CSV 파일로 저장
 erp reports sales-summary --period monthly --format csv --output "sales_2024_01.csv"

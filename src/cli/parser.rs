@@ -314,7 +314,7 @@ pub enum SalesCommands {
 pub enum ReportCommands {
     /// 매출 요약 보고서
     SalesSummary {
-        /// 기간 (monthly, weekly, daily)
+        /// 기간 (daily, weekly, monthly, quarterly, yearly, custom)
         #[clap(long, default_value = "monthly")]
         period: String,
         /// 시작 날짜 (YYYY-MM-DD)
@@ -323,8 +323,8 @@ pub enum ReportCommands {
         /// 종료 날짜 (YYYY-MM-DD)
         #[clap(long)]
         to_date: Option<String>,
-        /// 출력 형식 (table, csv, json)
-        #[clap(long, default_value = "table")]
+        /// 출력 형식 (console, json, csv, html, pdf)
+        #[clap(long, default_value = "console")]
         format: String,
         /// 출력 파일 경로
         #[clap(long)]
@@ -332,8 +332,8 @@ pub enum ReportCommands {
     },
     /// 재고 상태 보고서
     InventoryStatus {
-        /// 출력 형식 (table, csv, json)
-        #[clap(long, default_value = "table")]
+        /// 출력 형식 (console, json, csv, html, pdf)
+        #[clap(long, default_value = "console")]
         format: String,
         /// 출력 파일 경로
         #[clap(long)]
@@ -347,8 +347,8 @@ pub enum ReportCommands {
         /// 분석 기간 (months)
         #[clap(long, default_value = "12")]
         months: u32,
-        /// 출력 형식 (table, csv, json)
-        #[clap(long, default_value = "table")]
+        /// 출력 형식 (console, json, csv, html, pdf)
+        #[clap(long, default_value = "console")]
         format: String,
         /// 출력 파일 경로
         #[clap(long)]
@@ -362,8 +362,8 @@ pub enum ReportCommands {
         /// 종료 날짜 (YYYY-MM-DD)
         #[clap(long)]
         to_date: Option<String>,
-        /// 출력 형식 (table, csv, json)
-        #[clap(long, default_value = "table")]
+        /// 출력 형식 (console, json, csv, html, pdf)
+        #[clap(long, default_value = "console")]
         format: String,
         /// 출력 파일 경로
         #[clap(long)]

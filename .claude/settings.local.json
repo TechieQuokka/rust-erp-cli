@@ -46,7 +46,9 @@
       "mcp__context7__get-library-docs",
       "Bash(.targetdebugerp.exe sales list-orders --limit 5)",
       "Bash(target/debug/erp.exe sales list-orders:*)",
-      "Bash(target/debug/erp.exe customers list:*)"
+      "Bash(target/debug/erp.exe customers list:*)",
+      "Bash(Select-String -Pattern \"ORD-000032\")",
+      "Bash(git restore:*)"
     ],
     "deny": [],
     "ask": []
