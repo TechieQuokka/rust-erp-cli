@@ -259,6 +259,12 @@ impl SalesService {
         }
 
         self.validate_update_order_request(&updates)?;
+
+        // If status is being updated, call update_order_status to handle inventory
+        if let Some(new_status) = updates.status {
+            self.update_order_status(id, new_status).await?;
+        }
+
         self.repository.update_order(id, &updates).await?;
 
         let updated_order_summary = self.get_order_by_id(id).await?;
@@ -273,12 +279,14 @@ impl SalesService {
 
     pub async fn update_order_status(&self, id: Uuid, status: OrderStatus) -> ErpResult<()> {
         let existing_order = self.repository.get_order_by_id(id).await?;
-        if existing_order.is_none() {
-            return Err(ErpError::not_found("Order", id.to_string()));
-        }
+        let order = match existing_order {
+            Some(order) => order,
+            None => return Err(ErpError::not_found("Order", id.to_string())),
+        };
 
         if let Some(inventory_service) = &self.inventory_service {
             if status == OrderStatus::Confirmed {
+                // Deduct inventory when confirming order
                 let items = self.repository.get_order_items(id).await?;
                 for item in &items {
                     inventory_service
@@ -289,6 +297,34 @@ impl SalesService {
                             Uuid::new_v4(),
                         )
                         .await?;
+                }
+            } else if status == OrderStatus::Returned {
+                // Restore inventory when order is returned
+                let items = self.repository.get_order_items(id).await?;
+                for item in &items {
+                    inventory_service
+                        .adjust_stock(
+                            &item.product_id.to_string(),
+                            item.quantity,
+                            format!("Order {} returned", id),
+                            Uuid::new_v4(),
+                        )
+                        .await?;
+                }
+            } else if status == OrderStatus::Cancelled {
+                // Restore inventory only if order was previously confirmed or processing
+                if order.status == OrderStatus::Confirmed || order.status == OrderStatus::Processing {
+                    let items = self.repository.get_order_items(id).await?;
+                    for item in &items {
+                        inventory_service
+                            .adjust_stock(
+                                &item.product_id.to_string(),
+                                item.quantity,
+                                format!("Order {} cancelled", id),
+                                Uuid::new_v4(),
+                            )
+                            .await?;
+                    }
                 }
             }
         }
